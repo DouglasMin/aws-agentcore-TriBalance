@@ -3041,7 +3041,7 @@ git push
 2. Store secrets in AWS Secrets Manager (same region):
    ```bash
    aws secretsmanager create-secret --name OPENAI_API_KEY --secret-string 'sk-...'
-   aws secretsmanager create-secret --name LANGCHAIN_API_KEY --secret-string 'ls-...'
+   aws secretsmanager create-secret --name LANGSMITH_API_KEY --secret-string 'lsv2_pt_...'
    ```
 3. Grant IAM: Runtime execution role needs `s3:GetObject` on input bucket, `s3:PutObject` on artifacts bucket, `bedrock-agentcore:InvokeCodeInterpreter`, `bedrock-agentcore:StartCodeInterpreterSession`, `bedrock-agentcore:StopCodeInterpreterSession`, `bedrock:InvokeModel` on the configured model IDs, `secretsmanager:GetSecretValue` on the two secrets.
 4. Upload sample: `./scripts/upload_sample.sh`
