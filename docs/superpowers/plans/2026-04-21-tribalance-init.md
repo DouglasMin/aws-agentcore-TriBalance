@@ -6,6 +6,8 @@
 
 **Architecture:** Container-based AgentCore Runtime deployment. LangGraph `StateGraph` with 6 linear nodes (`fetch → parse → sleep → activity → synthesize → plan`). XML parsed in the Runtime process with `lxml` (streaming), slim CSVs injected into Code Interpreter via `writeFiles`, LLM-generated pandas code executed via `executeCode` with a self-correcting retry loop. OpenAI/Bedrock provider switchable via env var, with `finance-ai-app`'s `infra/llm.py` factory pattern. LangSmith auto-traces LangGraph nodes; Code Interpreter calls get `@traceable` child spans.
 
+**Code Interpreter isolation policy:** One session per Runtime invocation (context-manager scoped). Within a session, multiple `executeCode` calls share a Python process — so we wrap every LLM-generated snippet in `def _analysis(): ...; _analysis()` (via `CodeInterpreterWrapper.execute_isolated`) to prevent user-defined names from leaking between node invocations while keeping imports cached. Prompts explicitly instruct the LLM to emit only top-level statements (no `if __name__ == "__main__":`) so the wrapping is always valid.
+
 **Tech Stack:**
 - **Runtime:** AgentCore Runtime (Container, ARM64), `bedrock-agentcore` Python SDK
 - **Graph:** `langgraph`, `langchain-core`, `langchain-openai`, `langchain-aws`
@@ -969,6 +971,20 @@ def test_context_manager_starts_and_stops(monkeypatch):
 
     assert w._client.stopped is True
     assert created == ["us-west-2"]
+
+
+def test_execute_isolated_wraps_code_in_function_scope():
+    wrapper = CodeInterpreterWrapper.__new__(CodeInterpreterWrapper)
+    wrapper._client = MagicMock()
+    wrapper._client.invoke.return_value = _stream([{"stdout": "ok\n"}])
+
+    wrapper.execute_isolated("x = 42\nprint('ok')")
+
+    sent_code = wrapper._client.invoke.call_args.args[1]["code"]
+    assert sent_code.startswith("def _analysis():")
+    assert "    x = 42" in sent_code
+    assert "    print('ok')" in sent_code
+    assert sent_code.rstrip().endswith("_analysis()")
 ```
 
 - [ ] **Step 2: Run test to verify FAIL**
@@ -999,6 +1015,7 @@ owned by `main.py`.
 
 from __future__ import annotations
 
+import textwrap
 from typing import Any
 
 from bedrock_agentcore.tools.code_interpreter_client import CodeInterpreter
@@ -1033,6 +1050,27 @@ class CodeInterpreterWrapper:
             {"language": "python", "code": code},
         )
         return self._collect_stream(response)
+
+    @traceable(name="code_interpreter.execute_isolated", run_type="tool")
+    def execute_isolated(self, code: str) -> dict[str, Any]:
+        """Run `code` inside a fresh function scope to prevent globals leakage.
+
+        Between multiple executeCode calls in the same session, top-level
+        variables from prior calls would otherwise remain in the Python
+        namespace. By wrapping in `def _analysis(): ... _analysis()`, all
+        user-defined names become function locals that disappear on return.
+        Imports inside the wrapped code stay cached at the module level
+        (Python's import system), so there's no perf penalty.
+
+        The supplied `code` must consist of top-level statements only
+        (no `if __name__ == "__main__":`).
+        """
+        wrapped = (
+            "def _analysis():\n"
+            f"{textwrap.indent(code, '    ')}\n"
+            "_analysis()\n"
+        )
+        return self.execute_code(wrapped)
 
     def read_file(self, path: str) -> bytes:
         response = self._client.invoke("readFiles", {"paths": [path]})
@@ -1757,6 +1795,14 @@ contains a file `sleep.csv` with columns: `date` (ISO), `in_bed_min`, `asleep_mi
 4. Saves a line chart of `asleep_min / 60` over `date` to `sleep_trend.png`
    with matplotlib; labeled axes; title "Sleep duration (hours)".
 
+## Code constraints (IMPORTANT — your code will be wrapped in a function)
+
+- Write **top-level statements only** — import, assignments, function calls, loops.
+- **Do NOT** use `if __name__ == "__main__":`. Do not define module-level guards.
+- Do not rely on variables or imports from prior executions. Import everything
+  you need inside THIS code block (e.g. `import pandas as pd`).
+- Do not use `return` at the top level.
+
 ## Output format
 
 Return ONLY a single Python code block. No prose outside the block.
@@ -1790,6 +1836,14 @@ contains a file `activity.csv` with columns: `date` (ISO), `steps`, `active_kcal
    - `trend` (one of "up", "down", "stable") — compare first-half vs second-half averages of `steps`; threshold 5%.
 3. Saves a line chart of `steps` over `date` to `activity_trend.png` with matplotlib;
    labeled axes; title "Daily steps".
+
+## Code constraints (IMPORTANT — your code will be wrapped in a function)
+
+- Write **top-level statements only** — import, assignments, function calls, loops.
+- **Do NOT** use `if __name__ == "__main__":`. Do not define module-level guards.
+- Do not rely on variables or imports from prior executions. Import everything
+  you need inside THIS code block (e.g. `import pandas as pd`).
+- Do not use `return` at the top level.
 
 ## Output format
 
@@ -2086,7 +2140,9 @@ def run_codegen_loop(
 
         emit({"event": "code_generated", "node": node_name, "code": code, "attempt": attempt})
 
-        result = ci.execute_code(code)
+        # Use execute_isolated — wraps code in `def _analysis(): ... _analysis()`
+        # so variables from previous node calls (same session) don't leak in.
+        result = ci.execute_isolated(code)
 
         emit({
             "event": "code_result",
