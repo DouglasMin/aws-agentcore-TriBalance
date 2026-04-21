@@ -30,29 +30,47 @@ SDK — no Strands adapter is used.
 ## Directory
 
 ```
+.venv/            Virtualenv for this project (pytest, agentcore CLI context)
 agentcore/        AgentCore schema + (auto) CDK
 app/              Runtime code (1 runtime = 1 app subdir)
   TriBalanceAgent/
-    main.py       Entrypoint; @app.entrypoint
-    graph.py      StateGraph assembly
-    state.py      TypedDict state
-    events.py     Event emitter utilities
-    nodes/        One file per graph node
-    infra/        External system wrappers (boto3, langchain, lxml)
-    prompts/      Markdown prompts
-    tests/        Pytest suite with fixtures
+    pyproject.toml / uv.lock    Python package config
+    main.py                     Entrypoint; @app.entrypoint
+    graph.py                    StateGraph assembly
+    state.py                    TypedDict state
+    events.py                   Event emitter utilities
+    nodes/                      One file per graph node
+    infra/                      External system wrappers (boto3, langchain, lxml)
+    prompts/                    Markdown prompts
+    tests/                      Pytest suite with fixtures
 dev.sh            Local dev launcher (agentcore dev)
 ```
 
+**Venv layout (important):** The venv lives at `tribalance/.venv`, not inside
+`app/TriBalanceAgent/.venv`. This mirrors the `finance-ai-app` convention so
+`agentcore` CLI commands (which run from this directory, where `.bedrock_agentcore.yaml`
+lands) and pytest share the same active environment.
+
+Because the Python package is actually at `app/TriBalanceAgent/`, the venv is built
+with `uv pip install -e "app/TriBalanceAgent[dev]"` (editable install referencing
+the nested `pyproject.toml`).
+
 ## Commands
 
+All commands assume you are inside `tribalance/` with the venv activated:
+
 ```bash
+# One-time setup
+uv venv --python 3.13
+source .venv/bin/activate
+uv pip install -e "app/TriBalanceAgent[dev]"
+
 # Local dev (container hot-reload)
 ./dev.sh
 
 # Deploy
 AWS_PROFILE=developer-dongik agentcore launch
 
-# Tests
-cd app/TriBalanceAgent && uv run pytest -q
+# Tests (venv activated)
+cd app/TriBalanceAgent && pytest -q
 ```
