@@ -2,6 +2,13 @@
 
 Apple Health → Code Interpreter-driven weekly health report agent.
 
+## Status
+
+This document describes the intended shape of the project. It is being built
+task-by-task per `../docs/superpowers/plans/2026-04-21-tribalance-init.md`.
+Some files listed below may not yet exist; check `git log` to see what has
+landed.
+
 ## Mental Model
 
 Schema-first AgentCore project. `agentcore/agentcore.json` is the source of truth;
@@ -18,7 +25,7 @@ SDK — no Strands adapter is used.
 2. **Nodes don't import nodes.** Nodes depend only on `infra/`, `state`, `events`.
 3. **Prompts live in `prompts/*.md`.** Never hard-code a prompt in a `.py` file.
 4. **Code Interpreter session is 1-per-invocation.** Always open with a `with` block.
-5. **LLM provider switch via env only.** DDB/Memory-driven switching is Phase 2.
+5. **LLM provider switch via env only (this phase).** DynamoDB/Memory-driven runtime switching is deferred to Phase 2.
 
 ## Directory
 

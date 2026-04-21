@@ -15,6 +15,10 @@ uv sync
 ./dev.sh
 ```
 
+> Note: `dev.sh` and the Python package are created in subsequent tasks of the
+> init plan. Until then, `uv sync` and `./dev.sh` will not work. Run the plan
+> tasks first.
+
 ## Deploy
 
 ```bash
