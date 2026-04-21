@@ -91,33 +91,59 @@ class CodeInterpreterWrapper:
 
     @staticmethod
     def _collect_stream(response: dict) -> dict[str, Any]:
-        stdout: list[str] = []
-        stderr: list[str] = []
+        """Normalize the AgentCore `invoke('executeCode')` stream response.
+
+        Actual response shape (probed against live service 2026-04-22):
+            response = {
+                "stream": [
+                    {
+                        "result": {
+                            "structuredContent": {
+                                "stdout": "...", "stderr": "...",
+                                "exitCode": 0, "executionTime": 0.04
+                            },
+                            "content": [{"type": "text", "text": "..."}],
+                            "isError": false
+                        }
+                    },
+                    ...
+                ]
+            }
+
+        We read the authoritative fields from `structuredContent` and use
+        `isError` / `exitCode` to derive the single `ok` bool.
+        """
+        stdout_parts: list[str] = []
+        stderr_parts: list[str] = []
         files: list[str] = []
-        error: str | None = None
+        is_error = False
+        exit_code = 0
+
         for event in response.get("stream", []):
             r = event.get("result", {})
-            if (s := r.get("stdout")) is not None:
-                stdout.append(s)
-            if (s := r.get("stderr")) is not None:
-                stderr.append(s)
-            if (f := r.get("files")):
-                for item in f:
-                    if isinstance(item, str):
-                        files.append(item)
-                    elif isinstance(item, dict) and "path" in item:
-                        files.append(item["path"])
-            if (e := r.get("error")):
-                error = e
-        stderr_joined = "".join(stderr)
+            sc = r.get("structuredContent", {}) or {}
+            if (s := sc.get("stdout")):
+                stdout_parts.append(s)
+            if (s := sc.get("stderr")):
+                stderr_parts.append(s)
+            if sc.get("exitCode"):
+                exit_code = sc["exitCode"]
+            if r.get("isError"):
+                is_error = True
+
+            # Chart files written by matplotlib show up in content blocks as
+            # resource items with file:// URIs.
+            for item in r.get("content", []) or []:
+                if item.get("type") == "resource":
+                    uri = (item.get("resource") or {}).get("uri", "")
+                    if uri.startswith("file://"):
+                        files.append(uri.replace("file://", ""))
+
+        ok = not is_error and exit_code == 0
         return {
-            "stdout": "".join(stdout),
-            "stderr": stderr_joined,
+            "stdout": "".join(stdout_parts),
+            "stderr": "".join(stderr_parts),
             "files": files,
-            # Non-empty stderr (matplotlib backend chatter, pandas FutureWarning,
-            # font-cache messages) is NOT treated as failure — only an explicit
-            # `error` field aborts the run. stderr is still fed back to the LLM
-            # as context if the retry path is triggered via missing METRICS_JSON.
-            "ok": error is None,
-            "error": error,
+            "ok": ok,
+            "error": "code execution failed" if not ok else None,
         }

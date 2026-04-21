@@ -4,44 +4,63 @@ from unittest.mock import MagicMock
 from infra.code_interpreter import CodeInterpreterWrapper
 
 
-def _stream(events):
-    """Match the AgentCore Code Interpreter stream shape."""
-    return {"stream": [{"result": e} for e in events]}
+def _stream_sc(structured, *, is_error=False, content=None):
+    """Build a fake executeCode response event with real AgentCore shape:
+      { "result": { "structuredContent": {...}, "content": [...], "isError": bool } }
+    """
+    event = {
+        "result": {
+            "structuredContent": structured,
+            "content": content or [],
+            "isError": is_error,
+        }
+    }
+    return {"stream": [event]}
 
 
-def test_collect_stream_aggregates_stdout_stderr_files():
-    response = _stream([
-        {"stdout": "hello "},
-        {"stdout": "world"},
-        {"stderr": ""},
-        {"files": ["chart.png"]},
-    ])
+def test_collect_stream_reads_stdout_and_stderr_from_structured_content():
+    response = _stream_sc(
+        {"stdout": "hello world", "stderr": "", "exitCode": 0}
+    )
     result = CodeInterpreterWrapper._collect_stream(response)
     assert result == {
         "stdout": "hello world",
         "stderr": "",
-        "files": ["chart.png"],
+        "files": [],
         "ok": True,
         "error": None,
     }
 
 
-def test_collect_stream_captures_error_and_stderr():
-    response = _stream([
-        {"stdout": ""},
-        {"stderr": "NameError: name 'foo' is not defined"},
-        {"error": "ExecutionError"},
-    ])
+def test_collect_stream_sets_ok_false_on_is_error_or_nonzero_exit():
+    response = _stream_sc(
+        {"stdout": "", "stderr": "Traceback ... NameError: name 'foo'", "exitCode": 1},
+        is_error=True,
+    )
     result = CodeInterpreterWrapper._collect_stream(response)
     assert result["ok"] is False
     assert "NameError" in result["stderr"]
-    assert result["error"] == "ExecutionError"
+    assert result["error"] == "code execution failed"
+
+
+def test_collect_stream_extracts_chart_files_from_content_resources():
+    response = _stream_sc(
+        {"stdout": "done", "stderr": "", "exitCode": 0},
+        content=[
+            {"type": "text", "text": "done"},
+            {"type": "resource", "resource": {"uri": "file:///sandbox/sleep_trend.png"}},
+        ],
+    )
+    result = CodeInterpreterWrapper._collect_stream(response)
+    assert result["files"] == ["/sandbox/sleep_trend.png"]
 
 
 def test_execute_code_calls_invoke_with_python():
     wrapper = CodeInterpreterWrapper.__new__(CodeInterpreterWrapper)
     wrapper._client = MagicMock()
-    wrapper._client.invoke.return_value = _stream([{"stdout": "42\n"}])
+    wrapper._client.invoke.return_value = _stream_sc(
+        {"stdout": "42\n", "stderr": "", "exitCode": 0}
+    )
 
     result = wrapper.execute_code("print(6*7)")
 
@@ -94,7 +113,9 @@ def test_context_manager_starts_and_stops(monkeypatch):
 def test_execute_isolated_wraps_code_in_function_scope():
     wrapper = CodeInterpreterWrapper.__new__(CodeInterpreterWrapper)
     wrapper._client = MagicMock()
-    wrapper._client.invoke.return_value = _stream([{"stdout": "ok\n"}])
+    wrapper._client.invoke.return_value = _stream_sc(
+        {"stdout": "ok\n", "stderr": "", "exitCode": 0}
+    )
 
     wrapper.execute_isolated("x = 42\nprint('ok')")
 
