@@ -16,6 +16,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncGenerator
 
+# ---------------------------------------------------------------------------
+# LangSmith auth bootstrap — MUST run before any LangChain import so the
+# tracer picks up the key from env on first use. LangSmith only reads env
+# (no explicit-pass API), so we fetch from Secrets Manager and set it here.
+# ---------------------------------------------------------------------------
+if (
+    os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true"
+    and not os.environ.get("LANGSMITH_API_KEY")
+    and not os.environ.get("LANGCHAIN_API_KEY")
+):
+    import boto3  # local import; keeps cold-path minimal when tracing is off
+    _sm = boto3.client(
+        "secretsmanager",
+        region_name=os.environ.get("BEDROCK_REGION", "ap-northeast-2"),
+    )
+    try:
+        os.environ["LANGSMITH_API_KEY"] = _sm.get_secret_value(
+            SecretId="LANGSMITH_API_KEY"
+        )["SecretString"]
+    except Exception:
+        # Don't fail invocations just because tracing couldn't bootstrap.
+        # LangChain will silently disable the tracer when no key is present.
+        pass
+
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
 import events
