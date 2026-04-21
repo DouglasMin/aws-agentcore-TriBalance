@@ -12,7 +12,13 @@ ENV UV_SYSTEM_PYTHON=1 \
     DOCKER_CONTAINER=1 \
     UV_DEFAULT_INDEX=${UV_DEFAULT_INDEX} \
     UV_INDEX=${UV_INDEX} \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    BEDROCK_REGION=ap-northeast-2 \
+    INPUT_S3_BUCKET=tribalance-input \
+    ARTIFACTS_S3_BUCKET=tribalance-artifacts \
+    LLM_PROVIDER=openai \
+    LANGCHAIN_TRACING_V2=true \
+    LANGCHAIN_PROJECT=tribalance
 
 RUN useradd -m -u 1000 bedrock_agentcore
 
