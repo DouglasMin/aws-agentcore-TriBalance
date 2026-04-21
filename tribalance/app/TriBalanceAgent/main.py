@@ -49,73 +49,78 @@ async def invoke(payload: dict, context: Any = None) -> AsyncGenerator[dict, Non
         "period": week_start or "auto",
     }
 
-    event_queue: asyncio.Queue = asyncio.Queue()
+    with tempfile.TemporaryDirectory(prefix=f"tribalance-{run_id}-") as _tmp:
+        tmp_root = Path(_tmp)
 
-    def _sync_emit(e: dict) -> None:
-        event_queue.put_nowait(e)
+        event_queue: asyncio.Queue = asyncio.Queue()
 
-    s3 = S3Client(region=_REGION)
-    tmp_root = Path(tempfile.mkdtemp(prefix=f"tribalance-{run_id}-"))
+        def _sync_emit(e: dict) -> None:
+            event_queue.put_nowait(e)
 
-    initial_state = {
-        "s3_key": s3_key,
-        "week_start": week_start or "",
-        "run_id": run_id,
-    }
+        s3 = S3Client(region=_REGION)
 
-    async def _run_graph() -> dict:
-        with CodeInterpreterWrapper(_REGION) as ci:
-            events.set_emitter(_sync_emit)
-            try:
+        initial_state = {
+            "s3_key": s3_key,
+            "week_start": week_start or "",
+            "run_id": run_id,
+        }
+
+        async def _run_graph() -> dict:
+            with CodeInterpreterWrapper(_REGION) as ci:
                 graph = build_graph(ci=ci, s3=s3, tmp_root=tmp_root)
-                final_state: dict = {}
 
                 def _run():
-                    state = dict(initial_state)
-                    for chunk in graph.stream(state):
-                        for node_name, node_state in chunk.items():
-                            _sync_emit({"event": "node_end", "node": node_name})
-                            state.update(node_state)
-                    return state
+                    # Set emitter inside the worker thread so its ContextVar
+                    # binding lives in the thread's own context copy. Nodes
+                    # invoked from graph.stream() run in this same thread and
+                    # read back the emitter via events.emit().
+                    events.set_emitter(_sync_emit)
+                    try:
+                        state = dict(initial_state)
+                        for chunk in graph.stream(state):
+                            for node_name, node_state in chunk.items():
+                                _sync_emit({"event": "node_end", "node": node_name})
+                                state.update(node_state)
+                        return state
+                    finally:
+                        events.set_emitter(None)
 
                 return await asyncio.to_thread(_run)
-            finally:
-                events.set_emitter(None)
 
-    task = asyncio.create_task(_run_graph())
+        task = asyncio.create_task(_run_graph())
 
-    # Drain queue until the graph task finishes
-    while True:
-        if task.done() and event_queue.empty():
-            break
+        # Drain queue until the graph task finishes
+        while True:
+            if task.done() and event_queue.empty():
+                break
+            try:
+                event = await asyncio.wait_for(event_queue.get(), timeout=0.25)
+                yield event
+            except asyncio.TimeoutError:
+                continue
+
         try:
-            event = await asyncio.wait_for(event_queue.get(), timeout=0.25)
-            yield event
-        except asyncio.TimeoutError:
-            continue
+            final_state = await task
+        except Exception as exc:
+            log.exception("graph failed")
+            yield {"event": "error", "message": str(exc)}
+            return
 
-    try:
-        final_state = await task
-    except Exception as exc:
-        log.exception("graph failed")
-        yield {"event": "error", "message": str(exc)}
-        return
-
-    yield {
-        "event": "complete",
-        "report": {
-            "run_id": run_id,
-            "period": week_start or "",
-            "parse_summary": final_state.get("parse_summary"),
-            "metrics": {
-                "sleep": final_state.get("sleep_metrics"),
-                "activity": final_state.get("activity_metrics"),
+        yield {
+            "event": "complete",
+            "report": {
+                "run_id": run_id,
+                "period": week_start or "",
+                "parse_summary": final_state.get("parse_summary"),
+                "metrics": {
+                    "sleep": final_state.get("sleep_metrics"),
+                    "activity": final_state.get("activity_metrics"),
+                },
+                "insights": final_state.get("insights", []),
+                "plan": final_state.get("plan", ""),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
             },
-            "insights": final_state.get("insights", []),
-            "plan": final_state.get("plan", ""),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        },
-    }
+        }
 
 
 if __name__ == "__main__":

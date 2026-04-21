@@ -114,6 +114,10 @@ class CodeInterpreterWrapper:
             "stdout": "".join(stdout),
             "stderr": stderr_joined,
             "files": files,
-            "ok": error is None and not stderr_joined,
+            # Non-empty stderr (matplotlib backend chatter, pandas FutureWarning,
+            # font-cache messages) is NOT treated as failure — only an explicit
+            # `error` field aborts the run. stderr is still fed back to the LLM
+            # as context if the retry path is triggered via missing METRICS_JSON.
+            "ok": error is None,
             "error": error,
         }

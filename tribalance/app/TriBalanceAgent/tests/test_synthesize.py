@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 
 from nodes.synthesize import make_synthesize_node
 

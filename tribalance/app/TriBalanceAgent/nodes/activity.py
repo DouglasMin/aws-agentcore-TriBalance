@@ -18,6 +18,9 @@ def make_activity_node(
     max_attempts: int = 3,
 ) -> Callable[[TriBalanceState], dict]:
     def activity_node(state: TriBalanceState) -> dict:
+        bucket = os.environ.get("ARTIFACTS_S3_BUCKET")
+        if not bucket:
+            raise RuntimeError("ARTIFACTS_S3_BUCKET env is not set")
         metrics = run_codegen_loop(
             node_name="activity",
             prompt_file="code_synthesis_activity.md",
@@ -27,7 +30,7 @@ def make_activity_node(
             ci=ci,
             s3=s3,
             run_id=state["run_id"],
-            artifacts_bucket=os.environ["ARTIFACTS_S3_BUCKET"],
+            artifacts_bucket=bucket,
             max_attempts=max_attempts,
         )
         return {"activity_metrics": metrics}
