@@ -491,8 +491,8 @@ export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
 export ARTIFACTS_S3_BUCKET="${ARTIFACTS_S3_BUCKET:-tribalance-artifacts}"
 export INPUT_S3_BUCKET="${INPUT_S3_BUCKET:-tribalance-input}"
 export LLM_PROVIDER="${LLM_PROVIDER:-openai}"
-export LANGSMITH_TRACING="${LANGSMITH_TRACING:-true}"
-export LANGSMITH_PROJECT="${LANGSMITH_PROJECT:-TriBalance}"
+export LANGCHAIN_TRACING_V2="${LANGCHAIN_TRACING_V2:-true}"
+export LANGCHAIN_PROJECT="${LANGCHAIN_PROJECT:-tribalance}"
 
 agentcore dev
 ```
@@ -2983,10 +2983,9 @@ LLM_PROVIDER=openai
 # Required for OpenAI provider
 OPENAI_API_KEY=sk-...
 
-# Optional: LangSmith
-LANGSMITH_TRACING=true
-LANGSMITH_PROJECT=TriBalance
-LANGSMITH_API_KEY=ls-...
+# LangSmith tracing flags (non-sensitive — API key lives in Secrets Manager)
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=tribalance
 ```
 
 - [ ] **Step 6: Commit**
@@ -3042,7 +3041,7 @@ git push
 2. Store secrets in AWS Secrets Manager (same region):
    ```bash
    aws secretsmanager create-secret --name OPENAI_API_KEY --secret-string 'sk-...'
-   aws secretsmanager create-secret --name LANGSMITH_API_KEY --secret-string 'ls-...'
+   aws secretsmanager create-secret --name LANGCHAIN_API_KEY --secret-string 'ls-...'
    ```
 3. Grant IAM: Runtime execution role needs `s3:GetObject` on input bucket, `s3:PutObject` on artifacts bucket, `bedrock-agentcore:InvokeCodeInterpreter`, `bedrock-agentcore:StartCodeInterpreterSession`, `bedrock-agentcore:StopCodeInterpreterSession`, `bedrock:InvokeModel` on the configured model IDs, `secretsmanager:GetSecretValue` on the two secrets.
 4. Upload sample: `./scripts/upload_sample.sh`
