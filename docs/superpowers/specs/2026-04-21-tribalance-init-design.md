@@ -401,36 +401,39 @@ def get_llm(purpose: Purpose) -> BaseChatModel:
 
 ## 8. AgentCore Schema (`agentcore.json`)
 
+실제 스키마(imageeditoragent 검증) 기준:
+
 ```json
 {
+  "$schema": "https://schema.agentcore.aws.dev/v1/agentcore.json",
   "name": "tribalance",
-  "agents": [
+  "version": 1,
+  "managedBy": "CDK",
+  "tags": {
+    "agentcore:created-by": "agentcore-cli",
+    "agentcore:project-name": "tribalance"
+  },
+  "runtimes": [
     {
       "name": "TriBalanceAgent",
-      "description": "Apple Health 데이터 분석 + 주간 플랜 생성 (수면+활동 2축)",
+      "build": "Container",
       "entrypoint": "main.py",
-      "codeLocation": "./app/TriBalanceAgent",
-      "buildType": "Container",
+      "codeLocation": "app/TriBalanceAgent/",
+      "runtimeVersion": "PYTHON_3_13",
       "networkMode": "PUBLIC",
-      "runtimeVersion": "PYTHON_3_12",
-      "env": {
-        "LLM_PROVIDER": "openai",
-        "BEDROCK_REGION": "us-west-2",
-        "ARTIFACTS_S3_BUCKET": "tribalance-artifacts",
-        "LANGSMITH_TRACING": "true",
-        "LANGSMITH_PROJECT": "TriBalance"
-      }
+      "protocol": "HTTP"
     }
   ],
   "memories": [],
-  "credentials": [
-    { "name": "OPENAI_API_KEY", "type": "apiKey" },
-    { "name": "LANGSMITH_API_KEY", "type": "apiKey" }
-  ]
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": []
 }
 ```
 
-`aws-targets.json`: region `us-west-2`, account/stack prefix는 유저 환경에 따라.
+Env/시크릿은 `agentcore.json`에 직접 들어가지 않고 Dockerfile ENV 또는 `dev.sh` export로 주입 (imageeditoragent 패턴). `aws-targets.json`: region/account는 유저 환경.
 
 ### IAM 권한 (배포 시 필요)
 - Runtime execution role: S3 input 버킷 `GetObject`, artifacts 버킷 `PutObject`, Bedrock `InvokeModel`, Code Interpreter `InvokeCodeInterpreter / StartCodeInterpreterSession / StopCodeInterpreterSession`
