@@ -28,7 +28,7 @@ def test_get_llm_openai(monkeypatch):
 
 def test_get_llm_bedrock(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "bedrock")
-    monkeypatch.setenv("BEDROCK_REGION", "us-west-2")
+    monkeypatch.setenv("BEDROCK_REGION", "ap-northeast-2")
     model = llm.get_llm("analyze")
     from langchain_aws import ChatBedrockConverse
     assert isinstance(model, ChatBedrockConverse)

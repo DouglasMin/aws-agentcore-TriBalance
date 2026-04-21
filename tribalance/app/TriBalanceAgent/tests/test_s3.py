@@ -10,7 +10,7 @@ def test_download_to_path(tmp_path, monkeypatch):
     mock_boto.get_object.return_value = {"Body": body}
     monkeypatch.setattr("infra.s3.boto3.client", lambda *_a, **_k: mock_boto)
 
-    client = S3Client(region="us-west-2")
+    client = S3Client(region="ap-northeast-2")
     dest = tmp_path / "sample.xml"
     client.download("bucket-x", "key/file.xml", dest)
 
@@ -22,7 +22,7 @@ def test_upload_bytes(monkeypatch):
     mock_boto = MagicMock()
     monkeypatch.setattr("infra.s3.boto3.client", lambda *_a, **_k: mock_boto)
 
-    client = S3Client(region="us-west-2")
+    client = S3Client(region="ap-northeast-2")
     client.upload_bytes("bucket-x", "runs/abc/chart.png", b"PNGDATA", content_type="image/png")
 
     mock_boto.put_object.assert_called_once_with(

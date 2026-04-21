@@ -13,7 +13,7 @@ _cache: dict[str, str] = {}
 
 @lru_cache(maxsize=1)
 def _client():
-    region = os.environ.get("SECRETS_REGION", os.environ.get("BEDROCK_REGION", "us-west-2"))
+    region = os.environ.get("SECRETS_REGION", os.environ.get("BEDROCK_REGION", "ap-northeast-2"))
     return boto3.client("secretsmanager", region_name=region)
 
 

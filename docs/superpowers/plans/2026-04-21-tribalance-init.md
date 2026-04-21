@@ -448,7 +448,7 @@ git commit -m "feat: Dockerfile with uv + ARM64 base for AgentCore Runtime"
   {
     "name": "default",
     "accountId": "REPLACE_WITH_ACCOUNT_ID",
-    "region": "us-west-2"
+    "region": "ap-northeast-2"
   }
 ]
 ```
@@ -487,7 +487,7 @@ git commit -m "feat: agentcore schema (TriBalanceAgent runtime + type contracts)
 set -euo pipefail
 
 export AWS_PROFILE="${AWS_PROFILE:-developer-dongik}"
-export BEDROCK_REGION="${BEDROCK_REGION:-us-west-2}"
+export BEDROCK_REGION="${BEDROCK_REGION:-ap-northeast-2}"
 export ARTIFACTS_S3_BUCKET="${ARTIFACTS_S3_BUCKET:-tribalance-artifacts}"
 export INPUT_S3_BUCKET="${INPUT_S3_BUCKET:-tribalance-input}"
 export LLM_PROVIDER="${LLM_PROVIDER:-openai}"
@@ -669,7 +669,7 @@ _cache: dict[str, str] = {}
 
 @lru_cache(maxsize=1)
 def _client():
-    region = os.environ.get("SECRETS_REGION", os.environ.get("BEDROCK_REGION", "us-west-2"))
+    region = os.environ.get("SECRETS_REGION", os.environ.get("BEDROCK_REGION", "ap-northeast-2"))
     return boto3.client("secretsmanager", region_name=region)
 
 
@@ -762,7 +762,7 @@ def test_get_llm_openai(monkeypatch):
 
 def test_get_llm_bedrock(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "bedrock")
-    monkeypatch.setenv("BEDROCK_REGION", "us-west-2")
+    monkeypatch.setenv("BEDROCK_REGION", "ap-northeast-2")
     model = llm.get_llm("analyze")
     from langchain_aws import ChatBedrockConverse
     assert isinstance(model, ChatBedrockConverse)
@@ -845,7 +845,7 @@ def get_llm(purpose: Purpose) -> BaseChatModel:
         from langchain_aws import ChatBedrockConverse
         return ChatBedrockConverse(
             model=model,
-            region_name=os.environ.get("BEDROCK_REGION", "us-west-2"),
+            region_name=os.environ.get("BEDROCK_REGION", "ap-northeast-2"),
             max_retries=2,
         )
     raise ValueError(f"Unknown LLM_PROVIDER: {provider}")
@@ -966,11 +966,11 @@ def test_context_manager_starts_and_stops(monkeypatch):
         "infra.code_interpreter.CodeInterpreter", FakeClient
     )
 
-    with CodeInterpreterWrapper("us-west-2") as w:
+    with CodeInterpreterWrapper("ap-northeast-2") as w:
         assert w._client.started is True
 
     assert w._client.stopped is True
-    assert created == ["us-west-2"]
+    assert created == ["ap-northeast-2"]
 
 
 def test_execute_isolated_wraps_code_in_function_scope():
@@ -1159,7 +1159,7 @@ def test_download_to_path(tmp_path, monkeypatch):
     mock_boto.get_object.return_value = {"Body": body}
     monkeypatch.setattr("infra.s3.boto3.client", lambda *_a, **_k: mock_boto)
 
-    client = S3Client(region="us-west-2")
+    client = S3Client(region="ap-northeast-2")
     dest = tmp_path / "sample.xml"
     client.download("bucket-x", "key/file.xml", dest)
 
@@ -1171,7 +1171,7 @@ def test_upload_bytes(monkeypatch):
     mock_boto = MagicMock()
     monkeypatch.setattr("infra.s3.boto3.client", lambda *_a, **_k: mock_boto)
 
-    client = S3Client(region="us-west-2")
+    client = S3Client(region="ap-northeast-2")
     client.upload_bytes("bucket-x", "runs/abc/chart.png", b"PNGDATA", content_type="image/png")
 
     mock_boto.put_object.assert_called_once_with(
@@ -2666,7 +2666,7 @@ log = get_logger("tribalance.main")
 
 app = BedrockAgentCoreApp()
 
-_REGION = os.environ.get("BEDROCK_REGION", "us-west-2")
+_REGION = os.environ.get("BEDROCK_REGION", "ap-northeast-2")
 
 
 @app.entrypoint
@@ -2913,7 +2913,7 @@ git commit -m "test: end-to-end graph test against fixture XML with mocked LLM +
 set -euo pipefail
 
 : "${AWS_PROFILE:?set AWS_PROFILE}"
-REGION="${BEDROCK_REGION:-us-west-2}"
+REGION="${BEDROCK_REGION:-ap-northeast-2}"
 INPUT="${INPUT_S3_BUCKET:-tribalance-input}"
 ARTIFACTS="${ARTIFACTS_S3_BUCKET:-tribalance-artifacts}"
 
@@ -2975,7 +2975,7 @@ chmod +x scripts/*.sh
 ```
 # Copy to .env (or export in your shell) for local dev. Do not commit .env.
 AWS_PROFILE=developer-dongik
-BEDROCK_REGION=us-west-2
+BEDROCK_REGION=ap-northeast-2
 INPUT_S3_BUCKET=tribalance-input
 ARTIFACTS_S3_BUCKET=tribalance-artifacts
 LLM_PROVIDER=openai

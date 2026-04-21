@@ -29,7 +29,7 @@ log = get_logger("tribalance.main")
 
 app = BedrockAgentCoreApp()
 
-_REGION = os.environ.get("BEDROCK_REGION", "us-west-2")
+_REGION = os.environ.get("BEDROCK_REGION", "ap-northeast-2")
 
 
 @app.entrypoint

@@ -388,7 +388,7 @@ def get_llm(purpose: Purpose) -> BaseChatModel:
         from langchain_aws import ChatBedrockConverse
         return ChatBedrockConverse(
             model=model,
-            region_name=os.environ.get("BEDROCK_REGION", "us-west-2"),
+            region_name=os.environ.get("BEDROCK_REGION", "ap-northeast-2"),
             max_retries=2,
         )
     raise ValueError(f"Unknown LLM_PROVIDER: {provider}")

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 : "${AWS_PROFILE:?set AWS_PROFILE}"
-REGION="${BEDROCK_REGION:-us-west-2}"
+REGION="${BEDROCK_REGION:-ap-northeast-2}"
 INPUT="${INPUT_S3_BUCKET:-tribalance-input}"
 ARTIFACTS="${ARTIFACTS_S3_BUCKET:-tribalance-artifacts}"
 

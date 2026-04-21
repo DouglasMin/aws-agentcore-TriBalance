@@ -2,6 +2,6 @@
   {
     "name": "default",
     "accountId": "REPLACE_WITH_ACCOUNT_ID",
-    "region": "us-west-2"
+    "region": "ap-northeast-2"
   }
 ]

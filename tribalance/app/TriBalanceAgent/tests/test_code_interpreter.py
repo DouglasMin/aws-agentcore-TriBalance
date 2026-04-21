@@ -84,11 +84,11 @@ def test_context_manager_starts_and_stops(monkeypatch):
         "infra.code_interpreter.CodeInterpreter", FakeClient
     )
 
-    with CodeInterpreterWrapper("us-west-2") as w:
+    with CodeInterpreterWrapper("ap-northeast-2") as w:
         assert w._client.started is True
 
     assert w._client.stopped is True
-    assert created == ["us-west-2"]
+    assert created == ["ap-northeast-2"]
 
 
 def test_execute_isolated_wraps_code_in_function_scope():
