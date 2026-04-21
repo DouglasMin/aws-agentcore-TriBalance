@@ -53,3 +53,52 @@ def test_parse_summary_counts():
     # 5 nights × 2 records = 10 sleep, 5 days × 3 quantity types = 15 activity
     assert s["sleep_records"] == 10
     assert s["activity_records"] == 15
+
+
+def _write_xml(tmp_path: Path, records_xml: str) -> str:
+    body = f'<?xml version="1.0" encoding="UTF-8"?>\n<HealthData locale="en_US">\n{records_xml}\n</HealthData>\n'
+    path = tmp_path / "edge.xml"
+    path.write_text(body)
+    return str(path)
+
+
+def test_multi_segment_asleep_sums_on_same_night(tmp_path):
+    # One InBed + two Asleep* (Core + Deep) on the same night — asleep_min must sum.
+    xml = """
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
+          startDate="2026-05-01 23:00:00 +0900" endDate="2026-05-02 06:00:00 +0900"
+          value="HKCategoryValueSleepAnalysisInBed"/>
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
+          startDate="2026-05-01 23:10:00 +0900" endDate="2026-05-02 03:10:00 +0900"
+          value="HKCategoryValueSleepAnalysisAsleepCore"/>
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
+          startDate="2026-05-02 03:10:00 +0900" endDate="2026-05-02 05:40:00 +0900"
+          value="HKCategoryValueSleepAnalysisAsleepDeep"/>
+"""
+    state = {"local_xml_path": _write_xml(tmp_path, xml)}
+    out = parse_node(state)
+    rows = _rows(out["sleep_csv"])
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["date"] == "2026-05-02"
+    assert int(r["in_bed_min"]) == 7 * 60            # 23:00 -> 06:00
+    assert int(r["asleep_min"]) == 4 * 60 + 2 * 60 + 30  # 240 + 150 = 390
+
+
+def test_negative_minutes_record_is_skipped(tmp_path):
+    # Malformed record where endDate < startDate — must not pollute totals.
+    xml = """
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
+          startDate="2026-06-01 23:00:00 +0900" endDate="2026-06-01 22:00:00 +0900"
+          value="HKCategoryValueSleepAnalysisAsleepCore"/>
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
+          startDate="2026-06-01 23:00:00 +0900" endDate="2026-06-02 06:00:00 +0900"
+          value="HKCategoryValueSleepAnalysisInBed"/>
+"""
+    state = {"local_xml_path": _write_xml(tmp_path, xml)}
+    out = parse_node(state)
+    rows = _rows(out["sleep_csv"])
+    # Only the InBed record survives; malformed AsleepCore skipped.
+    assert len(rows) == 1
+    assert int(rows[0]["in_bed_min"]) == 7 * 60
+    assert int(rows[0]["asleep_min"]) == 0

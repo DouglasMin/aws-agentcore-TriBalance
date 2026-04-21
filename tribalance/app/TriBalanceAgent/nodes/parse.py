@@ -66,8 +66,15 @@ def parse_node(state: TriBalanceState) -> dict:
             sleep_records += 1
             start = _parse_dt(el.get("startDate"))
             end = _parse_dt(el.get("endDate"))
-            date_key = end.date().isoformat()
             minutes = int((end - start).total_seconds() // 60)
+            # Apple Health occasionally exports malformed records where
+            # endDate <= startDate. Skip such records silently.
+            if minutes <= 0:
+                el.clear()
+                while el.getprevious() is not None:
+                    del el.getparent()[0]
+                continue
+            date_key = end.date().isoformat()
             value = el.get("value", "")
             if value == _SLEEP_INBED:
                 sleep_by_date[date_key]["in_bed_min"] += minutes
@@ -82,7 +89,9 @@ def parse_node(state: TriBalanceState) -> dict:
                 value = float(el.get("value", "0"))
             except ValueError:
                 value = 0.0
-            activity_by_date[date_key][col] += int(value)
+            # round (not truncate) to avoid systematic undercount on kcal,
+            # and floor at zero to swallow malformed negatives.
+            activity_by_date[date_key][col] += max(0, round(value))
         # free element memory; purge previous siblings
         el.clear()
         while el.getprevious() is not None:
