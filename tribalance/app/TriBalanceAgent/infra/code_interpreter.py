@@ -43,6 +43,12 @@ class CodeInterpreterWrapper:
 
     @traceable(name="code_interpreter.execute", run_type="tool")
     def execute_code(self, code: str) -> dict[str, Any]:
+        """Low-level Code Interpreter `executeCode` — no globals isolation.
+
+        Nodes should prefer `execute_isolated` to avoid variable leakage between
+        multiple calls in the same session. Use this directly only when you
+        intentionally want shared namespace across calls.
+        """
         response = self._client.invoke(
             "executeCode",
             {"language": "python", "code": code},
@@ -63,16 +69,17 @@ class CodeInterpreterWrapper:
         The supplied `code` must consist of top-level statements only
         (no `if __name__ == "__main__":`).
         """
+        indented = textwrap.indent(code, "    ") if code.strip() else "    pass"
         wrapped = (
             "def _analysis():\n"
-            f"{textwrap.indent(code, '    ')}\n"
+            f"{indented}\n"
             "_analysis()\n"
         )
         return self.execute_code(wrapped)
 
     def read_file(self, path: str) -> bytes:
         response = self._client.invoke("readFiles", {"paths": [path]})
-        for event in response["stream"]:
+        for event in response.get("stream", []):
             result = event.get("result", {})
             files = result.get("files") or []
             for f in files:
