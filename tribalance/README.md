@@ -38,5 +38,8 @@ pytest -q
 
 ```bash
 source .venv/bin/activate
-AWS_PROFILE=developer-dongik agentcore launch
+AWS_PROFILE=developer-dongik agentcore deploy
 ```
+
+First deploy creates `.bedrock_agentcore.yaml` in this directory and provisions
+the CDK stack described by `agentcore/agentcore.json`.

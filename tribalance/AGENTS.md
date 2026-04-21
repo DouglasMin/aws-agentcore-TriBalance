@@ -68,8 +68,8 @@ uv pip install -e "app/TriBalanceAgent[dev]"
 # Local dev (container hot-reload)
 ./dev.sh
 
-# Deploy
-AWS_PROFILE=developer-dongik agentcore launch
+# Deploy (CDK-based; finance-ai-app pattern)
+AWS_PROFILE=developer-dongik agentcore deploy
 
 # Tests (venv activated)
 cd app/TriBalanceAgent && pytest -q
