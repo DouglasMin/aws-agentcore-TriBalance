@@ -12,12 +12,17 @@ See design spec: `../docs/superpowers/specs/2026-04-21-tribalance-init-design.md
 uv venv --python 3.13
 source .venv/bin/activate
 uv pip install -e "app/TriBalanceAgent[dev]"
+uv pip install bedrock-agentcore-starter-toolkit   # provides `agentcore` CLI
 ```
 
-The venv lives at `tribalance/.venv` — `agentcore` CLI and `pytest` both run
-with it activated. (The Python package itself is at `app/TriBalanceAgent/`
-with its own `pyproject.toml`/`uv.lock`; we install it editable into the
-parent venv.)
+The venv lives at `tribalance/.venv` (mirrors `finance-ai-app` pattern). The
+Python `bedrock-agentcore-starter-toolkit` installs the `agentcore` CLI
+(`launch`, `dev`, `invoke`, ...) into this venv — activating it shadows any
+global `agentcore` binary on PATH so all project commands resolve to the
+Python CLI.
+
+The agent package itself is at `app/TriBalanceAgent/` with its own
+`pyproject.toml`/`uv.lock`; we install it editable into the parent venv.
 
 ## Local dev
 
@@ -38,8 +43,8 @@ pytest -q
 
 ```bash
 source .venv/bin/activate
-AWS_PROFILE=developer-dongik agentcore deploy
+AWS_PROFILE=developer-dongik agentcore launch
 ```
 
-First deploy creates `.bedrock_agentcore.yaml` in this directory and provisions
-the CDK stack described by `agentcore/agentcore.json`.
+First launch creates `.bedrock_agentcore.yaml` in this directory.
+(`deploy` is the newer alias for `launch` — either works.)

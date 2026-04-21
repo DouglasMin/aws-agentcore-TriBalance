@@ -64,12 +64,13 @@ All commands assume you are inside `tribalance/` with the venv activated:
 uv venv --python 3.13
 source .venv/bin/activate
 uv pip install -e "app/TriBalanceAgent[dev]"
+uv pip install bedrock-agentcore-starter-toolkit   # provides `agentcore` CLI
 
 # Local dev (container hot-reload)
 ./dev.sh
 
-# Deploy (CDK-based; finance-ai-app pattern)
-AWS_PROFILE=developer-dongik agentcore deploy
+# Deploy (Python starter-toolkit CLI from activated venv)
+AWS_PROFILE=developer-dongik agentcore launch
 
 # Tests (venv activated)
 cd app/TriBalanceAgent && pytest -q
