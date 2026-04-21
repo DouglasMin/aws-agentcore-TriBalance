@@ -13,6 +13,7 @@ owned by `main.py`.
 
 from __future__ import annotations
 
+import base64
 import textwrap
 from typing import Any
 
@@ -78,15 +79,46 @@ class CodeInterpreterWrapper:
         return self.execute_code(wrapped)
 
     def read_file(self, path: str) -> bytes:
+        """Read a single file from the sandbox by name.
+
+        Real `readFiles` response shape (probed 2026-04-22):
+            result = {
+              "content": [
+                {"type": "resource",
+                 "resource": {"uri": "file:///sleep_trend.png",
+                              "mimeType": "image/png",
+                              "blob": <bytes|base64str>}}
+              ],
+              "isError": false
+            }
+
+        `blob` arrives as raw `bytes` with this transport — older SDK versions
+        may still hand back a base64 string, so both are accepted.
+        Path traversal: the sandbox rejects paths starting with `/`.
+        """
+        target = path.lstrip("./").lstrip("/")
         response = self._client.invoke("readFiles", {"paths": [path]})
         for event in response.get("stream", []):
             result = event.get("result", {})
-            files = result.get("files") or []
-            for f in files:
-                if f.get("path") == path and "bytes" in f:
-                    return bytes(f["bytes"])
-                if f.get("path") == path and "text" in f:
-                    return f["text"].encode()
+            if result.get("isError"):
+                raise FileNotFoundError(
+                    f"readFiles error for {path}: {result.get('content')}"
+                )
+            for item in result.get("content", []) or []:
+                if item.get("type") != "resource":
+                    continue
+                resource = item.get("resource") or {}
+                name = resource.get("uri", "").removeprefix("file://").lstrip("/")
+                if name != target:
+                    continue
+                if "blob" in resource:
+                    blob = resource["blob"]
+                    if isinstance(blob, (bytes, bytearray)):
+                        return bytes(blob)
+                    if isinstance(blob, str):
+                        return base64.b64decode(blob)
+                if "text" in resource:
+                    return resource["text"].encode()
         raise FileNotFoundError(f"{path} not found in Code Interpreter response")
 
     @staticmethod

@@ -22,6 +22,8 @@ env/
 **/cdk.out/
 **/cdk.context.json
 **/.bedrock_agentcore.yaml
+# agentcore launch auto-generates a staging Dockerfile/scripts directory
+**/.bedrock_agentcore/
 
 # AWS
 .aws-sam/
