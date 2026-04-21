@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# uv
+.uv/
+
+# AgentCore CDK artifacts
+**/cdk.out/
+**/cdk.context.json
+**/.bedrock_agentcore.yaml
+
+# AWS
+.aws-sam/
+.serverless/
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# LangSmith local cache
+.langsmith/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS
+Thumbs.db
+
+# Local dev samples (do not commit real health exports)
+samples/
+!samples/.gitkeep
+
+# Claude/tooling local state
+.claude/local_*
