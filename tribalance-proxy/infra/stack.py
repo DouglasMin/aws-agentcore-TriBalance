@@ -40,7 +40,7 @@ class TriBalanceProxyStack(Stack):
             self,
             "ProxyFunction",
             runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="main.handler",
+            handler="main.lambda_handler",
             code=lambda_.Code.from_asset(handler_dir),
             timeout=Duration.minutes(5),
             memory_size=512,
@@ -66,7 +66,7 @@ class TriBalanceProxyStack(Stack):
         # IAM: S3 presign (head + get on input, put/get on artifacts)
         proxy_fn.add_to_role_policy(
             iam.PolicyStatement(
-                actions=["s3:PutObject", "s3:GetObject"],
+                actions=["s3:PutObject", "s3:GetObject", "s3:HeadObject"],
                 resources=[
                     f"arn:aws:s3:::{INPUT_BUCKET}/*",
                     f"arn:aws:s3:::{ARTIFACTS_BUCKET}/*",
@@ -74,7 +74,9 @@ class TriBalanceProxyStack(Stack):
             )
         )
 
-        # Function URL with response streaming enabled (for SSE).
+        # TODO(Phase 3 hardening): Replace AuthType.NONE with AWS_IAM or a JWT
+        # authorizer. AuthType.NONE = fully public, no auth — acceptable for the
+        # Phase 1.5 local demo but MUST change before any production exposure.
         fn_url = proxy_fn.add_function_url(
             auth_type=lambda_.FunctionUrlAuthType.NONE,
             invoke_mode=lambda_.InvokeMode.RESPONSE_STREAM,

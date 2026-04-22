@@ -14,9 +14,20 @@ Non-streaming routes return a plain dict (buffered HTTP response).
 from __future__ import annotations
 
 import json
+import os
 
 from handler.invoke import stream_invoke
 from handler.presign import mint_artifact_url, mint_upload_url
+
+_ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
+
+def _cors_origin(event: dict) -> str:
+    """Pick the response Access-Control-Allow-Origin based on request Origin header
+    matched against ALLOWED_ORIGINS env. Falls back to the first allowlist entry
+    if no match (some browsers accept any string, but our list stays honest)."""
+    origin = (event.get("headers") or {}).get("origin", "")
+    return origin if origin in _ALLOWED_ORIGINS else _ALLOWED_ORIGINS[0]
 
 
 def lambda_handler(event, context=None):
@@ -30,7 +41,7 @@ def lambda_handler(event, context=None):
     method = _method(event)
 
     if method == "OPTIONS":
-        return _cors_preflight()
+        return _cors_preflight(event)
 
     if path == "/invoke" and method == "POST":
         return stream_invoke(event)
@@ -41,13 +52,7 @@ def lambda_handler(event, context=None):
     if path == "/artifact" and method == "GET":
         return mint_artifact_url(event)
 
-    return _not_found(path)
-
-
-# Expose as ``handler`` too so either CDK setting works:
-#   handler="main.lambda_handler"  (preferred)
-#   handler="main.handler"          (legacy P-01 value)
-handler = lambda_handler
+    return _not_found(event, path)
 
 
 def _path(event: dict) -> str:
@@ -58,11 +63,11 @@ def _method(event: dict) -> str:
     return event.get("requestContext", {}).get("http", {}).get("method", "GET")
 
 
-def _cors_preflight() -> dict:
+def _cors_preflight(event: dict) -> dict:
     return {
         "statusCode": 204,
         "headers": {
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": _cors_origin(event),
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "600",
@@ -70,9 +75,12 @@ def _cors_preflight() -> dict:
     }
 
 
-def _not_found(path: str) -> dict:
+def _not_found(event: dict, path: str) -> dict:
     return {
         "statusCode": 404,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": _cors_origin(event),
+        },
         "body": json.dumps({"error": f"no route: {path}"}),
     }
