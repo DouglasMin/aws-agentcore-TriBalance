@@ -23,6 +23,7 @@ from datetime import datetime
 
 from lxml import etree
 
+from events import emit
 from state import TriBalanceState
 
 _SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis"
@@ -112,6 +113,31 @@ def parse_node(state: TriBalanceState) -> dict:
     for d in dates:
         if d in activity_by_date:
             act_w.writerow({"date": d, **activity_by_date[d]})
+
+    sleep_series = []
+    for d in dates:
+        if d in sleep_by_date:
+            in_bed_min = sleep_by_date[d]["in_bed_min"]
+            asleep_min = sleep_by_date[d]["asleep_min"]
+            sleep_series.append({
+                "date": d,
+                "asleep_hr": round(asleep_min / 60, 2),
+                "in_bed_hr": round(in_bed_min / 60, 2),
+                "efficiency": round(asleep_min / in_bed_min, 3) if in_bed_min > 0 else 0.0,
+            })
+
+    activity_series = []
+    for d in dates:
+        if d in activity_by_date:
+            act = activity_by_date[d]
+            activity_series.append({
+                "date": d,
+                "steps": act["steps"],
+                "active_kcal": act["active_kcal"],
+                "exercise_min": act["exercise_min"],
+            })
+
+    emit({"event": "parsed_series", "sleep": sleep_series, "activity": activity_series})
 
     return {
         "sleep_csv": sleep_out.getvalue(),

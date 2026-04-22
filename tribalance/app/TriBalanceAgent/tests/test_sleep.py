@@ -114,3 +114,28 @@ def test_sleep_raises_after_max_attempts(monkeypatch):
     node = make_sleep_node(ci=ci, s3=s3, max_attempts=3)
     with pytest.raises(RuntimeError, match="sleep"):
         node({"sleep_csv": "x", "run_id": "abc"})
+
+
+def test_sleep_emits_metrics_event(monkeypatch):
+    llm = _FakeLLM(responses=["print('METRICS_JSON: {\"avg_duration_hr\": 7.6, \"avg_efficiency\": 0.95, \"trend\": \"stable\"}')"])
+    ci = _FakeCI(results=[{
+        "ok": True,
+        "stdout": 'METRICS_JSON: {"avg_duration_hr": 7.6, "avg_efficiency": 0.95, "trend": "stable"}\n',
+        "stderr": "", "files": ["sleep_trend.png"], "error": None,
+    }])
+    s3 = MagicMock()
+    monkeypatch.setenv("ARTIFACTS_S3_BUCKET", "bucket-art")
+    monkeypatch.setattr("nodes._codegen.get_llm", lambda _p: llm)
+
+    captured = []
+    events.set_emitter(captured.append)
+
+    node = make_sleep_node(ci=ci, s3=s3)
+    state = {"sleep_csv": "date,in_bed_min,asleep_min\n2026-04-02,475,455\n", "run_id": "abc"}
+    node(state)
+
+    metrics_events = [e for e in captured if e.get("event") == "metrics"]
+    assert len(metrics_events) == 1
+    assert metrics_events[0]["node"] == "sleep"
+    assert metrics_events[0]["metrics"]["avg_duration_hr"] == 7.6
+    assert metrics_events[0]["metrics"]["trend"] == "stable"

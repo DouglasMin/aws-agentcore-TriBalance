@@ -102,3 +102,53 @@ def test_negative_minutes_record_is_skipped(tmp_path):
     assert len(rows) == 1
     assert int(rows[0]["in_bed_min"]) == 7 * 60
     assert int(rows[0]["asleep_min"]) == 0
+
+
+def test_parse_emits_parsed_series_event():
+    import events as events_mod
+    captured = []
+    events_mod.set_emitter(captured.append)
+    try:
+        state = {"local_xml_path": str(FIXTURE)}
+        parse_node(state)
+    finally:
+        events_mod.set_emitter(None)
+
+    series_events = [e for e in captured if e.get("event") == "parsed_series"]
+    assert len(series_events) == 1
+    payload = series_events[0]
+    assert "sleep" in payload and "activity" in payload
+    assert len(payload["sleep"]) == 5
+    assert len(payload["activity"]) == 5
+
+    first_sleep = payload["sleep"][0]
+    assert first_sleep["date"] == "2026-04-02"
+    assert first_sleep["asleep_hr"] == round(455 / 60.0, 2)
+    assert 0 < first_sleep["efficiency"] <= 1
+
+    first_act = payload["activity"][0]
+    assert first_act["date"] == "2026-04-02"
+    assert first_act["steps"] == 6421
+    assert first_act["active_kcal"] == 380
+
+
+def test_parse_series_efficiency_zero_when_no_in_bed(tmp_path):
+    import events as events_mod
+    # Only AsleepCore record, no InBed → in_bed_min stays 0
+    xml = """
+  <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
+          startDate="2026-07-01 23:00:00 +0900" endDate="2026-07-02 06:00:00 +0900"
+          value="HKCategoryValueSleepAnalysisAsleepCore"/>
+"""
+    state = {"local_xml_path": _write_xml(tmp_path, xml)}
+    captured = []
+    events_mod.set_emitter(captured.append)
+    try:
+        parse_node(state)
+    finally:
+        events_mod.set_emitter(None)
+
+    payload = next(e for e in captured if e.get("event") == "parsed_series")
+    row = payload["sleep"][0]
+    assert row["in_bed_hr"] == 0.0
+    assert row["efficiency"] == 0.0

@@ -82,6 +82,8 @@ def run_codegen_loop(
                 last_error = str(e)
                 continue
 
+            emit({"event": "metrics", "node": node_name, "metrics": metrics})
+
             png_bytes = ci.read_file(chart_filename)
             chart_key = f"runs/{run_id}/{chart_filename}"
             s3.upload_bytes(artifacts_bucket, chart_key, png_bytes, content_type="image/png")

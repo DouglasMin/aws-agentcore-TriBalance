@@ -55,3 +55,27 @@ def test_activity_happy_path(monkeypatch):
     assert out["activity_metrics"]["avg"]["avg_steps"] == 7500
     assert out["activity_metrics"]["chart_s3_key"].endswith("activity_trend.png")
     s3.upload_bytes.assert_called_once()
+
+
+def test_activity_emits_metrics_event(monkeypatch):
+    llm = _FakeLLM(code="print('METRICS_JSON: {\"avg_steps\": 7500, \"avg_active_kcal\": 450, \"avg_exercise_min\": 29, \"trend\": \"up\"}')")
+    ci = _FakeCI(result={
+        "ok": True,
+        "stdout": 'METRICS_JSON: {"avg_steps": 7500, "avg_active_kcal": 450, "avg_exercise_min": 29, "trend": "up"}\n',
+        "stderr": "", "files": ["activity_trend.png"], "error": None,
+    })
+    s3 = MagicMock()
+    monkeypatch.setenv("ARTIFACTS_S3_BUCKET", "bucket-art")
+    monkeypatch.setattr("nodes._codegen.get_llm", lambda _p: llm)
+
+    captured = []
+    events.set_emitter(captured.append)
+
+    node = make_activity_node(ci=ci, s3=s3)
+    state = {"activity_csv": "date,steps,active_kcal,exercise_min\n2026-04-02,7500,450,29\n", "run_id": "xyz"}
+    node(state)
+
+    metrics_events = [e for e in captured if e.get("event") == "metrics"]
+    assert len(metrics_events) == 1
+    assert metrics_events[0]["node"] == "activity"
+    assert metrics_events[0]["metrics"]["avg_steps"] == 7500
