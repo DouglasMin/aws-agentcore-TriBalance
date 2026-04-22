@@ -1,0 +1,26 @@
+/* minimal reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px),
+    radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.6) 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  background-position: -1px -1px, -1px -1px, 0 0;
+}
+a { color: inherit; text-decoration: none; }
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+input, textarea { font: inherit; color: inherit; }

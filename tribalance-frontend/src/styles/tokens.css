@@ -1,0 +1,37 @@
+/* ATLAS design tokens — ported from mockups/option-c-atlas.html */
+:root {
+  /* ---- palette ---- */
+  --void: #080a0c;
+  --panel: #0e1115;
+  --panel-hi: #14181e;
+  --panel-lit: #1a1f26;
+  --grid: #15191f;
+  --grid-hi: #22272f;
+
+  --ink: #e4e7eb;
+  --ink-soft: #b8bec6;
+  --ink-dim: #717882;
+  --ink-mute: #3e4550;
+
+  --primary: #60a5fa;     /* data blue — activity line */
+  --primary-lo: #1e3a5c;
+  --warn: #f59e0b;        /* amber — alerts, sleep line */
+  --warn-lo: #3a2708;
+  --success: #34d399;     /* jade — OK state */
+  --danger: #ef4444;      /* red — errors */
+
+  /* ---- type ---- */
+  --font-sans:    'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+  --font-display: 'Archivo', system-ui, sans-serif;
+
+  /* ---- layout ---- */
+  --grid-cols: 12;
+  --grid-gap: 1px;
+  --panel-pad: 14px 16px 16px;
+  --topbar-h: 44px;
+
+  /* ---- motion ---- */
+  --fast: 160ms;
+  --slow: 600ms;
+}
