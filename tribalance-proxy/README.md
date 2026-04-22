@@ -4,12 +4,16 @@ Lambda Function URL that sits between the TriBalance frontend and the AgentCore
 Runtime. Three responsibilities:
 
 1. **`POST /invoke`** — forward a user invocation to the AgentCore agent and
-   stream SSE events back to the browser. (Wired in P-02.)
-2. **`POST /upload-url`** — mint a presigned PUT URL for direct-to-S3 uploads
-   of the Apple Health XML. (Wired in P-03.)
+   stream SSE events back to the browser. Uses `RESPONSE_STREAM` Function URL
+   invoke mode; the handler yields `data: {json}\n\n` frames from a
+   boto3 `invoke_agent_runtime` streaming response.
+2. **`POST /upload-url`** — mint a presigned PUT URL (5-min TTL) for direct-
+   to-S3 upload of the Apple Health XML. Body: `{filename?, content_type?}`.
+   Key layout: `samples/{run_id}/{filename}` under `INPUT_BUCKET`.
 3. **`GET /artifact?key=...`** — mint a presigned GET URL for chart artifacts
-   (currently unused by the frontend since recharts replaced matplotlib PNGs;
-   kept for future).
+   under `ARTIFACTS_BUCKET`. Key must start with `runs/` (traversal-safe).
+   Currently unused by the recharts frontend but kept for future "view raw
+   PNG" links.
 
 ## Stack
 
@@ -29,6 +33,7 @@ uv sync --extra dev
 Tests:
 ```bash
 uv run pytest -q
+# 16 passed: stack synth + SSE invoke (5) + presign (10)
 ```
 
 Synth (no deploy, just render CloudFormation):

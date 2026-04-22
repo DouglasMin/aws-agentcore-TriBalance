@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>TriBalance / DOSSIER — Option B (dark)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,300;1,9..144,400;1,9..144,600&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --paper: #0b0e12;
+  --paper-hi: #14181e;
+  --paper-lo: #070a0d;
+  --ink: #ebe6d9;
+  --ink-soft: #c8c1b1;
+  --ink-dim: #8a8372;
+  --ink-mute: #525042;
+  --accent: #d96b4e;       /* terracotta */
+  --gold: #c49c5c;
+  --sage: #7c9064;
+  --rule: #1e2229;
+  --rule-hi: #2a2f36;
+  --gold-faint: rgba(196,156,92,0.35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Spectral', 'Iowan Old Style', Georgia, serif;
+  font-size: 15px; line-height: 1.65;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(196,156,92,0.05) 0, transparent 42%),
+    radial-gradient(circle at 88% 92%, rgba(217,107,78,0.04) 0, transparent 48%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.006) 0 1px, transparent 1px 3px);
+  overflow-x: hidden;
+}
+
+.sheet { max-width: 1280px; margin: 0 auto; padding: 52px 72px 100px; }
+
+/* ----- masthead ----- */
+.masthead {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: end;
+  gap: 40px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--gold-faint);
+  margin-bottom: 10px;
+}
+.brand {
+  font-family: 'Fraunces', serif;
+  font-weight: 900;
+  font-size: 72px; letter-spacing: -0.05em; line-height: 0.85;
+  color: var(--ink);
+  font-variation-settings: "SOFT" 50, "opsz" 144;
+}
+.brand em { font-style: italic; font-weight: 300; color: var(--accent); }
+
+.masthead .kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.32em;
+  color: var(--gold); font-weight: 500;
+  text-align: right; text-transform: uppercase;
+}
+.masthead .kicker b { color: var(--ink); display:block; font-weight: 500; font-size: 11px; margin-top: 4px; letter-spacing: 0.26em; }
+.subbar {
+  display: flex; justify-content: space-between;
+  padding: 12px 0 28px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.3em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+}
+.subbar span b { color: var(--gold); font-weight: 500; margin-left: 10px; }
+
+/* ----- run bar ----- */
+.runbar {
+  display: flex; align-items: center; gap: 20px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 40px;
+  background: var(--paper-hi);
+}
+.runbar .m {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px; letter-spacing: 0.22em;
+  color: var(--ink-dim); text-transform: uppercase;
+}
+.runbar .m b { color: var(--ink); font-weight: 500; }
+.btn {
+  font-family: 'Fraunces', serif;
+  font-style: italic; font-weight: 600;
+  font-size: 16px;
+  background: var(--accent); color: var(--paper);
+  border: 0; padding: 11px 26px; cursor: pointer;
+  letter-spacing: 0.02em;
+  margin-left: auto;
+  transition: all .2s ease;
+}
+.btn:hover { background: var(--gold); color: var(--paper-lo); }
+.btn-ghost {
+  background: transparent; color: var(--ink-soft);
+  border: 1px solid var(--rule-hi);
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal; font-weight: 500;
+  font-size: 10px; letter-spacing: 0.24em;
+  padding: 11px 20px;
+  text-transform: uppercase;
+  margin-left: 0;
+}
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ----- pipeline ----- */
+.pipeline {
+  display: flex; gap: 0;
+  border: 1px solid var(--rule);
+  margin-bottom: 50px;
+}
+.pnode {
+  flex: 1;
+  padding: 16px 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.22em;
+  color: var(--ink-mute);
+  border-right: 1px solid var(--rule);
+  position: relative;
+  text-transform: uppercase;
+  transition: all .3s ease;
+}
+.pnode:last-child { border-right: 0; }
+.pnode .idx { color: var(--gold); font-weight: 700; margin-right: 10px; }
+.pnode.on { color: var(--ink); background: rgba(217,107,78,0.08); }
+.pnode.on .idx { color: var(--accent); }
+.pnode.done { color: var(--sage); }
+.pnode.done::after { content: ' ✓'; color: var(--sage); }
+
+/* ----- KPI hero ----- */
+.hero {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 34px 0 42px;
+  margin-bottom: 48px;
+  border-bottom: 1px solid var(--gold-faint);
+}
+.kpi { padding: 0 32px 0 0; border-right: 1px solid var(--rule); }
+.kpi:last-child { border-right: 0; padding-right: 0; }
+.kpi .num {
+  font-family: 'Fraunces', serif;
+  font-weight: 300;
+  font-size: 84px; line-height: 0.9;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+  font-variation-settings: "opsz" 144;
+}
+.kpi .num sup {
+  font-size: 18px; font-weight: 400;
+  vertical-align: 42px; margin-left: 4px;
+  color: var(--ink-dim);
+}
+.kpi.acc .num { color: var(--accent); }
+.kpi .lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.3em;
+  color: var(--gold); font-weight: 500;
+  margin-top: 14px; text-transform: uppercase;
+}
+.kpi .sub {
+  font-family: 'Fraunces', serif;
+  font-style: italic; font-weight: 300;
+  font-size: 14px; color: var(--ink-dim);
+  margin-top: 6px;
+}
+
+/* ----- spread ----- */
+.spread {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 56px;
+}
+
+.section-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.38em;
+  color: var(--accent); font-weight: 700;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--accent);
+  display: inline-block;
+  margin-bottom: 20px;
+}
+h2.hed {
+  font-family: 'Fraunces', serif;
+  font-weight: 400; font-style: italic;
+  font-size: 32px; line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 18px;
+}
+h2.hed b { font-style: normal; font-weight: 600; color: var(--gold); }
+.lead {
+  font-family: 'Fraunces', serif;
+  font-size: 17px; font-weight: 300;
+  line-height: 1.6; color: var(--ink-soft);
+  margin-bottom: 30px;
+}
+.lead::first-letter {
+  font-family: 'Fraunces', serif;
+  font-size: 54px; font-weight: 900;
+  float: left; line-height: 0.82;
+  padding: 8px 12px 0 0;
+  color: var(--accent);
+}
+
+/* ----- code exhibit ----- */
+.exhibit {
+  background: var(--paper-lo);
+  padding: 26px 28px 22px;
+  margin-bottom: 28px;
+  border-left: 3px solid var(--gold);
+  border-top: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.exhibit .cap {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px; letter-spacing: 0.32em;
+  color: var(--gold); font-weight: 500;
+  margin-bottom: 16px;
+  display: flex; justify-content: space-between;
+  text-transform: uppercase;
+}
+.exhibit .cap em { font-style: normal; color: var(--ink-mute); }
+.exhibit pre {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-soft);
+  white-space: pre-wrap; word-break: break-word;
+  min-height: 280px;
+}
+.k { color: #a7c3ff; }
+.s { color: var(--gold); }
+.c { color: #565246; font-style: italic; }
+.f { color: #e2a58b; }
+.caret {
+  display: inline-block;
+  width: 7px; height: 16px;
+  background: var(--accent);
+  vertical-align: -3px; margin-left: 1px;
+  animation: bk 0.7s step-end infinite;
+}
+@keyframes bk { 50% { opacity: 0; } }
+
+.stdrow {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 18px; align-items: baseline;
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+.stdrow .lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.28em;
+  color: var(--gold); font-weight: 500;
+  text-transform: uppercase;
+}
+.stdrow code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ----- chart ----- */
+.chart-block {
+  margin-bottom: 42px;
+  opacity: 0; transform: translateY(12px);
+  transition: all .8s cubic-bezier(.2,.7,.2,1);
+}
+.chart-block.on { opacity: 1; transform: none; }
+.chart-block .meta {
+  display: flex; justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px; letter-spacing: 0.26em;
+  color: var(--gold); font-weight: 500;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+.chart-block .meta b { color: var(--accent); font-weight: 500; }
+.chart-block h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 22px; font-weight: 400; font-style: italic;
+  line-height: 1.25; letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.chart-svg {
+  width: 100%; height: 190px;
+  background: var(--paper-hi);
+  padding: 20px 18px 24px;
+  border-top: 1px solid var(--gold-faint);
+  border-bottom: 1px solid var(--gold-faint);
+}
+.chart-svg svg { width: 100%; height: 100%; }
+.chart-cap {
+  font-family: 'Fraunces', serif;
+  font-style: italic; font-weight: 300;
+  font-size: 14px; color: var(--ink-dim);
+  margin-top: 14px; padding-left: 20px;
+  border-left: 2px solid var(--accent);
+  line-height: 1.55;
+}
+
+/* ----- insights ----- */
+.insights-list { margin-top: 12px; }
+.ins {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 18px; padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+  opacity: 0; transform: translateY(6px);
+  transition: all .5s ease;
+}
+.ins.on { opacity: 1; transform: none; }
+.ins .n {
+  font-family: 'Fraunces', serif;
+  font-size: 36px; font-weight: 300; font-style: italic;
+  color: var(--gold); line-height: 0.85;
+}
+.ins .t {
+  font-family: 'Fraunces', serif;
+  font-size: 16px; font-weight: 300;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ----- plan ----- */
+.plan-block {
+  grid-column: 1 / -1;
+  margin-top: 68px;
+  padding-top: 38px;
+  border-top: 1px solid var(--gold-faint);
+  position: relative;
+}
+.plan-block::before {
+  content: '—';
+  position: absolute;
+  top: -8px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--paper);
+  padding: 0 20px;
+  color: var(--gold);
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+}
+.plan-block h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 50px; font-weight: 900;
+  line-height: 0.95; letter-spacing: -0.035em;
+  color: var(--ink);
+  margin-bottom: 24px;
+}
+.plan-block h2 em { font-style: italic; font-weight: 300; color: var(--accent); }
+.plan-block .body {
+  font-family: 'Fraunces', serif;
+  font-size: 17px; font-weight: 300;
+  line-height: 1.75;
+  color: var(--ink-soft);
+  column-count: 2; column-gap: 56px;
+  white-space: pre-line;
+  opacity: 0; transition: opacity 1s ease;
+}
+.plan-block .body.on { opacity: 1; }
+.plan-block .body::first-letter {
+  font-size: 52px; font-weight: 900; font-style: italic;
+  float: left; line-height: 0.82;
+  padding: 10px 12px 0 0;
+  color: var(--gold);
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="masthead">
+    <div><div class="brand">Tri<em>balance</em></div></div>
+    <div></div>
+    <div class="kicker">
+      Dossier
+      <b>Week of 6 April 2026 · Vol. 01</b>
+    </div>
+  </div>
+
+  <div class="subbar">
+    <span>ANALYZED · 5 DAYS<b>2026·04·02 → 2026·04·06</b></span>
+    <span>REGION<b>ap-northeast-2</b></span>
+    <span>OBSERVABILITY<b>LANGSMITH · CLOUDWATCH</b></span>
+  </div>
+
+  <div class="runbar">
+    <div class="m">RUN · <b id="runid">—</b></div>
+    <div class="m">STATUS · <b id="status">IDLE</b></div>
+    <div class="m">AGENT · <b>TriBalanceAgent</b></div>
+    <button class="btn-ghost btn" id="reset">RESET</button>
+    <button class="btn" id="run">Begin analysis</button>
+  </div>
+
+  <div class="pipeline">
+    <div class="pnode" data-node="fetch"><span class="idx">01</span>FETCH</div>
+    <div class="pnode" data-node="parse"><span class="idx">02</span>PARSE</div>
+    <div class="pnode" data-node="sleep"><span class="idx">03</span>SLEEP · CI</div>
+    <div class="pnode" data-node="activity"><span class="idx">04</span>ACTIVITY · CI</div>
+    <div class="pnode" data-node="synthesize"><span class="idx">05</span>SYNTHESIZE</div>
+    <div class="pnode" data-node="plan"><span class="idx">06</span>PLAN</div>
+  </div>
+
+  <div class="hero">
+    <div class="kpi acc"><div class="num" id="k-sleep">—</div><div class="lbl">Average Sleep</div><div class="sub">asleep, per night</div></div>
+    <div class="kpi"><div class="num" id="k-eff">—</div><div class="lbl">Efficiency</div><div class="sub">asleep ÷ in bed</div></div>
+    <div class="kpi"><div class="num" id="k-steps">—</div><div class="lbl">Daily Steps</div><div class="sub">5-day mean</div></div>
+    <div class="kpi"><div class="num" id="k-kcal">—</div><div class="lbl">Active Burn</div><div class="sub">kcal per day</div></div>
+  </div>
+
+  <div class="spread">
+    <div>
+      <span class="section-tag">· Live Computation</span>
+      <h2 class="hed">The agent writes <b>pandas</b> and executes it in a sandboxed Code Interpreter — in real time.</h2>
+      <p class="lead">What you see below is not a static transcript. It is the actual code that an LLM just produced for this week's data, streamed character-by-character, then executed inside an isolated Python environment managed by AgentCore. The numbers on the right are the output of that execution, not the model's opinion of what the numbers should be.</p>
+
+      <div class="exhibit">
+        <div class="cap"><span>NODE · <em id="node-lbl">sleep · attempt 1</em></span><span>code_interpreter.execute_isolated</span></div>
+        <pre id="code"></pre>
+      </div>
+
+      <div class="stdrow">
+        <div class="lbl">STDOUT</div>
+        <code id="stdout">—</code>
+      </div>
+
+      <span class="section-tag" style="margin-top:56px;">· Interpretation</span>
+      <div class="insights-list" id="insights"></div>
+    </div>
+
+    <div>
+      <div class="chart-block" id="cb-sleep">
+        <div class="meta"><span>FIG. 01 · SLEEP DURATION (HOURS)</span><b>TREND · UP</b></div>
+        <h3>Restorative nights, with midweek recovery.</h3>
+        <div class="chart-svg">
+          <svg viewBox="0 0 600 180" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="gs-b" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#d96b4e" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="#d96b4e" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <g stroke="#c49c5c" stroke-width="0.5" opacity="0.22" stroke-dasharray="2 3">
+              <line x1="0" y1="40" x2="600" y2="40" />
+              <line x1="0" y1="90" x2="600" y2="90" />
+              <line x1="0" y1="140" x2="600" y2="140" />
+            </g>
+            <path d="M30,180 L30,84 L170,116 L310,24 L450,52 L590,60 L590,180 Z" fill="url(#gs-b)" />
+            <polyline points="30,84 170,116 310,24 450,52 590,60" fill="none" stroke="#d96b4e" stroke-width="2.4" />
+            <g fill="#d96b4e">
+              <circle cx="30" cy="84" r="4"/><circle cx="170" cy="116" r="4"/>
+              <circle cx="310" cy="24" r="4"/><circle cx="450" cy="52" r="4"/><circle cx="590" cy="60" r="4"/>
+            </g>
+            <g font-family="JetBrains Mono" font-size="10" fill="#8a8372" letter-spacing="1">
+              <text x="30" y="170">04·02</text><text x="170" y="170">04·03</text>
+              <text x="310" y="170">04·04</text><text x="450" y="170">04·05</text><text x="588" y="170" text-anchor="end">04·06</text>
+            </g>
+          </svg>
+        </div>
+        <div class="chart-cap">Weekend efficiency climbed 4% over weekday baseline. The dip on 04·03 tracks with a 23:40 bedtime and is the single outlier.</div>
+      </div>
+
+      <div class="chart-block" id="cb-activity">
+        <div class="meta"><span>FIG. 02 · DAILY STEPS</span><b>TREND · STABLE</b></div>
+        <h3>One deep-exertion day anchors a moderate week.</h3>
+        <div class="chart-svg">
+          <svg viewBox="0 0 600 180" preserveAspectRatio="none">
+            <g stroke="#c49c5c" stroke-width="0.5" opacity="0.22" stroke-dasharray="2 3">
+              <line x1="0" y1="40" x2="600" y2="40" />
+              <line x1="0" y1="90" x2="600" y2="90" />
+              <line x1="0" y1="140" x2="600" y2="140" />
+            </g>
+            <polyline points="30,118 170,80 310,18 450,160 590,96" fill="none" stroke="#7c9064" stroke-width="2.4" />
+            <g fill="#7c9064">
+              <circle cx="30" cy="118" r="4"/><circle cx="170" cy="80" r="4"/>
+              <circle cx="310" cy="18" r="4"/><circle cx="450" cy="160" r="4"/><circle cx="590" cy="96" r="4"/>
+            </g>
+            <g font-family="JetBrains Mono" font-size="10" fill="#c49c5c">
+              <text x="310" y="12" text-anchor="middle">12,045</text>
+              <text x="450" y="176" text-anchor="middle">3,211</text>
+            </g>
+          </svg>
+        </div>
+        <div class="chart-cap">The 12,045-step Friday more than doubled the week's floor of 3,211 on Saturday — a single scheduled workout, not sustained activity.</div>
+      </div>
+    </div>
+
+    <div class="plan-block">
+      <span class="section-tag">· Prescription</span>
+      <h2>Maintain the sleep. <em>Nudge</em> the movement upward.</h2>
+      <div class="body" id="plan">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SLEEP_CODE =
+`<span class="c"># Node: sleep · attempt 1 · Code Interpreter</span>
+<span class="k">import</span> json
+<span class="k">import</span> pandas <span class="k">as</span> pd
+<span class="k">import</span> matplotlib.pyplot <span class="k">as</span> plt
+
+df = pd.<span class="f">read_csv</span>(<span class="s">"sleep.csv"</span>, parse_dates=[<span class="s">"date"</span>])
+df[<span class="s">"efficiency"</span>] = df[<span class="s">"asleep_min"</span>] / df[<span class="s">"in_bed_min"</span>]
+
+avg_duration_hr = <span class="f">round</span>(df[<span class="s">"asleep_min"</span>].mean() / 60.0, 2)
+avg_efficiency  = <span class="f">round</span>(df[<span class="s">"efficiency"</span>].mean(), 2)
+
+mid = <span class="f">len</span>(df) // 2
+first, second = df.iloc[:mid], df.iloc[mid:]
+delta = (second[<span class="s">"asleep_min"</span>].mean() - first[<span class="s">"asleep_min"</span>].mean()) / first[<span class="s">"asleep_min"</span>].mean()
+trend = <span class="s">"up"</span> <span class="k">if</span> delta > .05 <span class="k">else</span> <span class="s">"down"</span> <span class="k">if</span> delta < -.05 <span class="k">else</span> <span class="s">"stable"</span>
+
+metrics = {<span class="s">"avg_duration_hr"</span>: avg_duration_hr, <span class="s">"avg_efficiency"</span>: avg_efficiency, <span class="s">"trend"</span>: trend}
+<span class="f">print</span>(<span class="s">"METRICS_JSON: "</span> + json.<span class="f">dumps</span>(metrics))
+
+plt.<span class="f">plot</span>(df[<span class="s">"date"</span>], df[<span class="s">"asleep_min"</span>] / 60.0, marker=<span class="s">"o"</span>)
+plt.<span class="f">savefig</span>(<span class="s">"sleep_trend.png"</span>, dpi=150)`;
+
+const ACTIVITY_CODE =
+`<span class="c"># Node: activity · attempt 1 · Code Interpreter</span>
+<span class="k">import</span> json, pandas <span class="k">as</span> pd, matplotlib.pyplot <span class="k">as</span> plt
+df = pd.<span class="f">read_csv</span>(<span class="s">"activity.csv"</span>, parse_dates=[<span class="s">"date"</span>])
+avg_steps    = <span class="f">int</span>(df[<span class="s">"steps"</span>].mean())
+avg_kcal     = <span class="f">int</span>(df[<span class="s">"active_kcal"</span>].mean())
+avg_exercise = <span class="f">int</span>(df[<span class="s">"exercise_min"</span>].mean())
+<span class="f">print</span>(json.<span class="f">dumps</span>({<span class="s">"avg_steps"</span>: avg_steps, <span class="s">"avg_active_kcal"</span>: avg_kcal, <span class="s">"avg_exercise_min"</span>: avg_exercise, <span class="s">"trend"</span>: <span class="s">"stable"</span>}))
+plt.<span class="f">plot</span>(df[<span class="s">"date"</span>], df[<span class="s">"steps"</span>], marker=<span class="s">"o"</span>)
+plt.<span class="f">savefig</span>(<span class="s">"activity_trend.png"</span>)`;
+
+const INSIGHTS = [
+  "Sleep quality is strong — 7.6h average with 95% efficiency. Trend is improving over the week.",
+  "Midweek surge: Friday's 12,045 steps anchors the activity average; weekend floor of 3,211 suggests low baseline.",
+  "Active-burn of 454 kcal/day leaves room for 30–45 additional minutes of aerobic work.",
+  "Sleep timing variance is narrow (±18 min around 23:20); preserve this regularity while adjusting activity."
+];
+
+const PLAN = `Sleep is in excellent shape — 7.6 hours at 95% efficiency, with the week's trend pointing upward. Activity is steady at 7,505 steps and 29 exercise minutes, but has meaningful headroom without risking the recovery budget.
+
+1. 월·수·금 아침 30분 빠르게 걷기. 기상 후 한 시간 이내 실내 또는 야외에서.
+2. 화·목 저녁 20분 근력운동. 스쿼트·푸시업·플랭크 중심으로 짧고 집중적으로.
+3. 토요일 오전 45분 가벼운 유산소. 자전거·등산·긴 산책 중 택일.
+4. 매일 점심 이후 10분 산책. 하루 걸음 수를 8,000+ 로 안정화.
+5. 취침 전 30분 루틴 유지. 밝은 화면을 줄이고 스트레칭이나 독서로 마무리.
+
+The one caution: raise activity intensity no more than once or twice a week and monitor how the extra load registers in next week's sleep data.`;
+
+let typing = null;
+async function typeInto(el, html, speed=6) {
+  el.innerHTML = '';
+  const tmp = document.createElement('div'); tmp.innerHTML = html;
+  const text = tmp.innerHTML;
+  let i = 0;
+  return new Promise(res => {
+    typing = setInterval(() => {
+      if (i >= text.length) { clearInterval(typing); res(); return; }
+      if (text[i] === '<') {
+        const end = text.indexOf('>', i);
+        el.innerHTML = text.slice(0, end+1) + '<span class="caret"></span>';
+        i = end + 1;
+      } else {
+        el.innerHTML = text.slice(0, i+1) + '<span class="caret"></span>';
+        i++;
+      }
+    }, speed);
+  });
+}
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setNode(name, s) {
+  const el = document.querySelector(`.pnode[data-node="${name}"]`);
+  el.classList.remove('on','done'); el.classList.add(s);
+}
+function animateNumber(el, target, suffix='', dur=900) {
+  const t0 = performance.now();
+  const tick = (now) => {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const v = target * eased;
+    el.textContent = (Number.isInteger(target) ? Math.round(v).toLocaleString() : v.toFixed(1));
+    if (suffix) el.innerHTML = el.textContent + `<sup>${suffix}</sup>`;
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+async function run() {
+  document.getElementById('run').disabled = true;
+  document.getElementById('runid').textContent = 'c23a5a22346e';
+  document.getElementById('status').textContent = 'LIVE';
+
+  setNode('fetch','on'); await wait(400); setNode('fetch','done');
+  setNode('parse','on'); await wait(500); setNode('parse','done');
+
+  setNode('sleep','on');
+  document.getElementById('node-lbl').textContent = 'sleep · attempt 1';
+  await typeInto(document.getElementById('code'), SLEEP_CODE, 5);
+  document.getElementById('code').innerHTML = document.getElementById('code').innerHTML.replace(/<span class="caret"><\/span>/g,'');
+  document.getElementById('stdout').textContent = `METRICS_JSON: {"avg_duration_hr": 7.6, "avg_efficiency": 0.95, "trend": "up"}`;
+  animateNumber(document.getElementById('k-sleep'), 7.6, 'h');
+  animateNumber(document.getElementById('k-eff'), 95, '%');
+  document.getElementById('cb-sleep').classList.add('on');
+  setNode('sleep','done');
+  await wait(500);
+
+  setNode('activity','on');
+  document.getElementById('node-lbl').textContent = 'activity · attempt 1';
+  await typeInto(document.getElementById('code'), ACTIVITY_CODE, 4);
+  document.getElementById('code').innerHTML = document.getElementById('code').innerHTML.replace(/<span class="caret"><\/span>/g,'');
+  document.getElementById('stdout').textContent = `METRICS_JSON: {"avg_steps": 7505, "avg_active_kcal": 454, "avg_exercise_min": 29, "trend": "stable"}`;
+  animateNumber(document.getElementById('k-steps'), 7505);
+  animateNumber(document.getElementById('k-kcal'), 454);
+  document.getElementById('cb-activity').classList.add('on');
+  setNode('activity','done');
+  await wait(500);
+
+  setNode('synthesize','on');
+  const host = document.getElementById('insights'); host.innerHTML = '';
+  INSIGHTS.forEach((t, idx) => {
+    const el = document.createElement('div'); el.className = 'ins';
+    el.innerHTML = `<div class="n">${String(idx+1).padStart(2,'0')}</div><div class="t">${t}</div>`;
+    host.appendChild(el);
+    setTimeout(() => el.classList.add('on'), 120 + idx * 140);
+  });
+  await wait(800);
+  setNode('synthesize','done');
+
+  setNode('plan','on'); await wait(600);
+  document.getElementById('plan').textContent = PLAN;
+  document.getElementById('plan').classList.add('on');
+  setNode('plan','done');
+
+  document.getElementById('status').textContent = 'COMPLETE';
+  document.getElementById('run').disabled = false;
+}
+
+document.getElementById('run').addEventListener('click', run);
+document.getElementById('reset').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>

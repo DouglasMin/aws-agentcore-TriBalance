@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>TriBalance // ATLAS — Option C (dark)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --void: #080a0c;
+  --panel: #0e1115;
+  --panel-hi: #14181e;
+  --panel-lit: #1a1f26;
+  --grid: #15191f;
+  --grid-hi: #22272f;
+  --ink: #e4e7eb;
+  --ink-soft: #b8bec6;
+  --ink-dim: #717882;
+  --ink-mute: #3e4550;
+  --primary: #60a5fa;
+  --primary-lo: #1e3a5c;
+  --warn: #f59e0b;
+  --warn-lo: #3a2708;
+  --success: #34d399;
+  --danger: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--void);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 13px; line-height: 1.5;
+  overflow-x: hidden;
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px),
+    radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.6) 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  background-position: -1px -1px, -1px -1px, 0 0;
+}
+
+/* ----- top bar ----- */
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--grid-hi);
+  background: var(--panel);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: blur(8px);
+}
+.topbar .sys {
+  display: flex; align-items: center; gap: 14px;
+  color: var(--ink-dim);
+}
+.topbar .sys b { color: var(--ink); font-weight: 500; }
+.topbar .sys .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); display: inline-block; animation: pulse 1.2s infinite; box-shadow: 0 0 10px var(--warn); }
+@keyframes pulse { 50% { opacity: .4; } }
+.topbar .coord {
+  text-align: center;
+  color: var(--ink-mute);
+}
+.topbar .coord b { color: var(--warn); margin: 0 10px; }
+.topbar .run {
+  display: flex; gap: 16px;
+  color: var(--ink-dim);
+}
+.topbar .run b { color: var(--primary); font-weight: 600; margin-left: 8px; }
+
+/* ----- main grid ----- */
+.atlas {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: minmax(140px, auto);
+  gap: 1px;
+  background: var(--grid-hi);
+  padding: 1px;
+  margin: 14px;
+}
+.panel {
+  background: var(--panel);
+  padding: 14px 16px 16px;
+  position: relative;
+  display: flex; flex-direction: column;
+}
+.panel > .hdr {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--grid-hi);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; letter-spacing: 0.28em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.panel > .hdr .id { color: var(--warn); font-weight: 700; }
+.panel > .hdr .id::before { content: '◆ '; color: var(--warn); }
+
+/* zone sizes */
+.z-vital-1 { grid-column: span 2; }     /* 4 KPI panels */
+.z-status { grid-column: span 4; }
+.z-code { grid-column: span 7; grid-row: span 4; }
+.z-chart-sleep { grid-column: span 5; grid-row: span 2; }
+.z-chart-activity { grid-column: span 5; grid-row: span 2; }
+.z-insights { grid-column: span 7; grid-row: span 2; }
+.z-plan { grid-column: span 5; grid-row: span 2; }
+
+/* ----- KPI ----- */
+.vital .v {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900; font-size: 52px; line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.vital .v .u {
+  font-size: 16px; font-weight: 500;
+  color: var(--ink-dim);
+  margin-left: 6px;
+  vertical-align: super;
+}
+.vital.primary .v { color: var(--warn); }
+.vital .l {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px; letter-spacing: 0.26em;
+  color: var(--ink-dim);
+  margin-top: 8px; text-transform: uppercase;
+}
+.vital .delta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: 0.18em;
+  color: var(--success);
+  margin-top: 4px;
+}
+.vital .delta.bad { color: var(--danger); }
+
+/* ----- status / run ----- */
+.status .pipe {
+  display: flex; flex-direction: column; gap: 7px;
+  flex: 1;
+}
+.status .step {
+  display: grid; grid-template-columns: 16px 1fr auto;
+  gap: 10px; align-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px; letter-spacing: 0.12em;
+  color: var(--ink-mute);
+}
+.status .step .d {
+  width: 8px; height: 8px;
+  border: 1px solid var(--ink-mute);
+  transform: rotate(45deg);
+  margin-left: 4px;
+}
+.status .step.on { color: var(--ink); }
+.status .step.on .d { border-color: var(--warn); background: var(--warn); box-shadow: 0 0 10px var(--warn); }
+.status .step.done { color: var(--success); }
+.status .step.done .d { border-color: var(--success); background: var(--success); }
+.status .step .t { font-size: 9.5px; color: var(--ink-mute); letter-spacing: 0.14em; }
+
+.launch {
+  display: flex; gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--grid-hi);
+}
+.btn {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.22em;
+  padding: 10px 14px;
+  background: var(--warn); color: #1a1200;
+  border: 0; cursor: pointer;
+  text-transform: uppercase;
+}
+.btn:hover { background: var(--ink); }
+.btn.ghost { background: transparent; color: var(--ink-dim); border: 1px solid var(--grid-hi); }
+.btn.ghost:hover { color: var(--warn); border-color: var(--warn); }
+
+/* ----- code panel ----- */
+.code-panel {
+  background: var(--void);
+}
+.code-panel .hdr .attempt { color: var(--warn); font-weight: 700; }
+.code-area {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+  white-space: pre-wrap; word-break: break-word;
+  color: var(--ink-soft);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.code-area .k { color: #93c5fd; }
+.code-area .s { color: #fbbf24; }
+.code-area .c { color: #4a5261; font-style: italic; }
+.code-area .f { color: #a5f3c3; }
+.caret {
+  display: inline-block;
+  width: 8px; height: 15px;
+  background: var(--warn);
+  vertical-align: -3px; margin-left: 2px;
+  animation: bk 0.6s step-end infinite;
+}
+@keyframes bk { 50% { opacity: 0; } }
+
+.stdbox {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-lo);
+  background: rgba(245,158,11,0.04);
+}
+.stdbox .t {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; letter-spacing: 0.3em;
+  color: var(--warn); font-weight: 600;
+  display: flex; justify-content: space-between;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.stdbox .t em { font-style: normal; color: var(--ink-dim); }
+.stdbox pre {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  color: var(--warn);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* ----- chart panels ----- */
+.chart-panel .chart {
+  flex: 1; position: relative;
+  opacity: 0; transform: scale(0.98);
+  transition: all .6s cubic-bezier(.2,.7,.2,1);
+}
+.chart-panel.on .chart { opacity: 1; transform: none; }
+.chart-panel svg { width: 100%; height: 100%; }
+.chart-panel .axis {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; fill: var(--ink-mute); letter-spacing: 1px;
+}
+.chart-meta {
+  display: flex; justify-content: space-between;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px; letter-spacing: 0.18em;
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.chart-meta b { color: var(--success); font-weight: 600; }
+.chart-meta b.stable { color: var(--ink); }
+
+/* ----- insights ----- */
+.insights-panel .list {
+  display: flex; flex-direction: column; gap: 10px;
+  flex: 1;
+}
+.ins {
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--grid-hi);
+  font-size: 13px;
+  opacity: 0; transform: translateY(6px);
+  transition: all .4s ease;
+}
+.ins.on { opacity: 1; transform: none; }
+.ins .c {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px; letter-spacing: 0.16em;
+  color: var(--warn); font-weight: 700;
+  min-width: 48px;
+}
+.ins .t { color: var(--ink-soft); line-height: 1.5; }
+.ins .sev {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; letter-spacing: 0.22em;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  height: fit-content; align-self: center;
+  color: var(--success);
+  text-transform: uppercase;
+}
+.ins .sev.watch { color: var(--warn); }
+
+/* ----- plan panel ----- */
+.plan-panel {
+  background: var(--panel-hi);
+}
+.plan-panel .hdr .id::before { color: var(--success); }
+.plan-panel .title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900; font-size: 26px;
+  line-height: 1.05; letter-spacing: -0.025em;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+.plan-panel .title em { font-style: italic; font-weight: 400; color: var(--warn); }
+.plan-panel .text {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px; line-height: 1.75;
+  color: var(--ink-soft);
+  white-space: pre-line;
+  flex: 1; overflow-y: auto;
+  padding-right: 6px;
+  opacity: 0; transition: opacity 1s ease;
+}
+.plan-panel .text.on { opacity: 1; }
+
+/* ----- corner marks ----- */
+.panel::after,
+.panel::before,
+.panel > .corner-tl,
+.panel > .corner-br {
+  position: absolute;
+  width: 10px; height: 10px;
+  border-color: var(--grid-hi);
+  content: '';
+}
+.panel::before {
+  top: 4px; left: 4px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+.panel::after {
+  bottom: 4px; right: 4px;
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="sys">
+    <span class="dot"></span>
+    <span>ATLAS v.01</span>
+    <span>·</span>
+    <span>TRIBALANCE//WEEKLY·HEALTH·INTELLIGENCE</span>
+  </div>
+  <div class="coord">37.5665°N<b>/</b>126.9780°E<b>·</b>SEOUL<b>·</b>KST<b>·</b>2026·04·22 07:44:00</div>
+  <div class="run">
+    <span>RUN<b id="runid">—</b></span>
+    <span>STATE<b id="status">IDLE</b></span>
+    <span>LATENCY<b id="lat">—</b></span>
+  </div>
+</div>
+
+<div class="atlas">
+
+  <!-- ROW 1 — VITALS + STATUS -->
+  <div class="panel z-vital-1 vital primary">
+    <div class="hdr"><span class="id">A-01</span><span>SLEEP DURATION</span></div>
+    <div class="v" id="k-sleep">—</div>
+    <div class="l">Hours asleep / night</div>
+    <div class="delta" id="d-sleep"></div>
+  </div>
+  <div class="panel z-vital-1 vital">
+    <div class="hdr"><span class="id">A-02</span><span>SLEEP EFFICIENCY</span></div>
+    <div class="v" id="k-eff">—</div>
+    <div class="l">asleep ÷ in bed</div>
+    <div class="delta" id="d-eff"></div>
+  </div>
+  <div class="panel z-vital-1 vital">
+    <div class="hdr"><span class="id">A-03</span><span>DAILY STEPS</span></div>
+    <div class="v" id="k-steps">—</div>
+    <div class="l">5-day mean</div>
+    <div class="delta" id="d-steps"></div>
+  </div>
+  <div class="panel z-vital-1 vital">
+    <div class="hdr"><span class="id">A-04</span><span>ACTIVE BURN</span></div>
+    <div class="v" id="k-kcal">—</div>
+    <div class="l">kcal / day</div>
+    <div class="delta" id="d-kcal"></div>
+  </div>
+
+  <div class="panel z-status status">
+    <div class="hdr"><span class="id">B-01</span><span>PIPELINE / 6 NODES</span></div>
+    <div class="pipe">
+      <div class="step" data-node="fetch"><span class="d"></span><span>01 · FETCH_S3</span><span class="t">—</span></div>
+      <div class="step" data-node="parse"><span class="d"></span><span>02 · PARSE_XML</span><span class="t">—</span></div>
+      <div class="step" data-node="sleep"><span class="d"></span><span>03 · SLEEP · CI</span><span class="t">—</span></div>
+      <div class="step" data-node="activity"><span class="d"></span><span>04 · ACTIVITY · CI</span><span class="t">—</span></div>
+      <div class="step" data-node="synthesize"><span class="d"></span><span>05 · SYNTHESIZE</span><span class="t">—</span></div>
+      <div class="step" data-node="plan"><span class="d"></span><span>06 · PLAN</span><span class="t">—</span></div>
+    </div>
+    <div class="launch">
+      <button class="btn ghost" id="reset">RESET</button>
+      <button class="btn" id="run">▶ ENGAGE</button>
+    </div>
+  </div>
+
+  <!-- ROW 2 — CODE + CHART-SLEEP -->
+  <div class="panel z-code code-panel">
+    <div class="hdr">
+      <span class="id">C-01</span>
+      <span>NODE · <em id="node-lbl">sleep</em> · ATTEMPT <span class="attempt">1</span> · code_interpreter.execute_isolated()</span>
+    </div>
+    <div class="code-area" id="code"></div>
+    <div class="stdbox">
+      <div class="t"><span>STDOUT · exitCode=<em id="xc">—</em></span><span id="exec-time">—</span></div>
+      <pre id="stdout">— waiting —</pre>
+    </div>
+  </div>
+
+  <div class="panel z-chart-sleep chart-panel" id="cb-sleep">
+    <div class="hdr"><span class="id">D-01</span><span>FIG · SLEEP HOURS / WEEK</span></div>
+    <div class="chart-meta"><span>5 DATAPOINTS · 04·02 → 04·06</span><b>TREND · UP</b></div>
+    <div class="chart">
+      <svg viewBox="0 0 500 180" preserveAspectRatio="none">
+        <defs>
+          <pattern id="g-a" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#22272f" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="500" height="160" fill="url(#g-a)" />
+        <g stroke="#22272f" stroke-width="0.5">
+          <line x1="0" y1="40" x2="500" y2="40" />
+          <line x1="0" y1="80" x2="500" y2="80" />
+          <line x1="0" y1="120" x2="500" y2="120" />
+        </g>
+        <polyline points="30,90 140,120 260,32 380,56 490,64" fill="none" stroke="#f59e0b" stroke-width="2" />
+        <g fill="#f59e0b">
+          <rect x="25" y="85" width="10" height="10" transform="rotate(45 30 90)"/>
+          <rect x="135" y="115" width="10" height="10" transform="rotate(45 140 120)"/>
+          <rect x="255" y="27" width="10" height="10" transform="rotate(45 260 32)"/>
+          <rect x="375" y="51" width="10" height="10" transform="rotate(45 380 56)"/>
+          <rect x="485" y="59" width="10" height="10" transform="rotate(45 490 64)"/>
+        </g>
+        <g class="axis">
+          <text x="30" y="172">04·02</text>
+          <text x="140" y="172">04·03</text>
+          <text x="260" y="172">04·04</text>
+          <text x="380" y="172">04·05</text>
+          <text x="495" y="172" text-anchor="end">04·06</text>
+          <text x="4" y="40" dominant-baseline="middle">9h</text>
+          <text x="4" y="80" dominant-baseline="middle">7h</text>
+          <text x="4" y="120" dominant-baseline="middle">5h</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ROW 3 — (code continues) CHART-ACTIVITY -->
+  <div class="panel z-chart-activity chart-panel" id="cb-activity">
+    <div class="hdr"><span class="id">D-02</span><span>FIG · DAILY STEPS / WEEK</span></div>
+    <div class="chart-meta"><span>RANGE 3,211 → 12,045</span><b class="stable">TREND · STABLE</b></div>
+    <div class="chart">
+      <svg viewBox="0 0 500 180" preserveAspectRatio="none">
+        <rect width="500" height="160" fill="url(#g-a)" />
+        <g stroke="#22272f" stroke-width="0.5">
+          <line x1="0" y1="40" x2="500" y2="40" />
+          <line x1="0" y1="80" x2="500" y2="80" />
+          <line x1="0" y1="120" x2="500" y2="120" />
+        </g>
+        <polyline points="30,110 140,82 260,22 380,148 490,94" fill="none" stroke="#60a5fa" stroke-width="2" />
+        <g fill="#60a5fa">
+          <rect x="25" y="105" width="10" height="10" transform="rotate(45 30 110)"/>
+          <rect x="135" y="77" width="10" height="10" transform="rotate(45 140 82)"/>
+          <rect x="255" y="17" width="10" height="10" transform="rotate(45 260 22)"/>
+          <rect x="375" y="143" width="10" height="10" transform="rotate(45 380 148)"/>
+          <rect x="485" y="89" width="10" height="10" transform="rotate(45 490 94)"/>
+        </g>
+        <text x="260" y="14" class="axis" fill="#f59e0b" text-anchor="middle">12,045</text>
+        <text x="380" y="164" class="axis" fill="#ef4444" text-anchor="middle">3,211</text>
+        <g class="axis">
+          <text x="30" y="172">04·02</text>
+          <text x="140" y="172">04·03</text>
+          <text x="495" y="172" text-anchor="end">04·06</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ROW 4 — INSIGHTS + PLAN -->
+  <div class="panel z-insights insights-panel">
+    <div class="hdr"><span class="id">E-01</span><span>INSIGHTS / SYNTHESIZED</span></div>
+    <div class="list" id="insights"></div>
+  </div>
+
+  <div class="panel z-plan plan-panel">
+    <div class="hdr"><span class="id">F-01</span><span>PRESCRIPTION / WEEKLY</span></div>
+    <div class="title">Maintain sleep.<br><em>Nudge</em> movement upward.</div>
+    <div class="text" id="plan">—</div>
+  </div>
+</div>
+
+<script>
+const SLEEP_CODE =
+`<span class="c"># Node: sleep · attempt 1 · Code Interpreter</span>
+<span class="k">import</span> json
+<span class="k">import</span> pandas <span class="k">as</span> pd
+<span class="k">import</span> matplotlib.pyplot <span class="k">as</span> plt
+
+df = pd.<span class="f">read_csv</span>(<span class="s">"sleep.csv"</span>, parse_dates=[<span class="s">"date"</span>])
+df[<span class="s">"efficiency"</span>] = df[<span class="s">"asleep_min"</span>] / df[<span class="s">"in_bed_min"</span>]
+
+avg_duration_hr = <span class="f">round</span>(df[<span class="s">"asleep_min"</span>].mean() / 60.0, 2)
+avg_efficiency  = <span class="f">round</span>(df[<span class="s">"efficiency"</span>].mean(), 2)
+
+mid = <span class="f">len</span>(df) // 2
+first, second = df.iloc[:mid], df.iloc[mid:]
+delta = (second[<span class="s">"asleep_min"</span>].mean() - first[<span class="s">"asleep_min"</span>].mean()) / first[<span class="s">"asleep_min"</span>].mean()
+trend = <span class="s">"up"</span> <span class="k">if</span> delta > .05 <span class="k">else</span> <span class="s">"down"</span> <span class="k">if</span> delta < -.05 <span class="k">else</span> <span class="s">"stable"</span>
+
+metrics = {<span class="s">"avg_duration_hr"</span>: avg_duration_hr, <span class="s">"avg_efficiency"</span>: avg_efficiency, <span class="s">"trend"</span>: trend}
+<span class="f">print</span>(<span class="s">"METRICS_JSON: "</span> + json.<span class="f">dumps</span>(metrics))
+
+plt.<span class="f">plot</span>(df[<span class="s">"date"</span>], df[<span class="s">"asleep_min"</span>] / 60.0, marker=<span class="s">"o"</span>)
+plt.<span class="f">savefig</span>(<span class="s">"sleep_trend.png"</span>, dpi=150)`;
+
+const ACTIVITY_CODE =
+`<span class="c"># Node: activity · attempt 1 · Code Interpreter</span>
+<span class="k">import</span> json, pandas <span class="k">as</span> pd, matplotlib.pyplot <span class="k">as</span> plt
+df = pd.<span class="f">read_csv</span>(<span class="s">"activity.csv"</span>, parse_dates=[<span class="s">"date"</span>])
+avg_steps    = <span class="f">int</span>(df[<span class="s">"steps"</span>].mean())
+avg_kcal     = <span class="f">int</span>(df[<span class="s">"active_kcal"</span>].mean())
+avg_exercise = <span class="f">int</span>(df[<span class="s">"exercise_min"</span>].mean())
+<span class="f">print</span>(json.<span class="f">dumps</span>({<span class="s">"avg_steps"</span>: avg_steps, <span class="s">"avg_active_kcal"</span>: avg_kcal, <span class="s">"avg_exercise_min"</span>: avg_exercise, <span class="s">"trend"</span>: <span class="s">"stable"</span>}))
+plt.<span class="f">plot</span>(df[<span class="s">"date"</span>], df[<span class="s">"steps"</span>], marker=<span class="s">"o"</span>)
+plt.<span class="f">savefig</span>(<span class="s">"activity_trend.png"</span>)`;
+
+const INSIGHTS = [
+  {code:'SL-01', text:'Sleep quality strong — 7.6h avg · 95% efficiency · trend improving.', sev:'OK'},
+  {code:'AC-02', text:'Midweek surge: Friday 12,045 steps, weekend floor 3,211 — low baseline.', sev:'WATCH'},
+  {code:'EN-03', text:'Active burn 454 kcal/day — room for 30–45 more aerobic minutes.', sev:'OK'},
+  {code:'RH-04', text:'Bedtime variance ±18 min around 23:20 — preserve regularity.', sev:'OK'},
+];
+
+const PLAN = `Sleep is excellent — 7.6h at 95% efficiency, trend up. Activity is steady but has room.
+
+01 · 월·수·금 아침 30분 빠르게 걷기
+02 · 화·목 저녁 20분 근력운동 (스쿼트·푸시업·플랭크)
+03 · 토요일 오전 45분 가벼운 유산소
+04 · 매일 점심 이후 10분 산책 — 8,000+ 걸음 안정화
+05 · 취침 전 30분 수면 루틴 유지
+
+Caution: raise intensity no more than 1–2× / week; monitor next week's sleep telemetry.`;
+
+let typing = null;
+async function typeInto(el, html, speed=6) {
+  el.innerHTML = '';
+  const tmp = document.createElement('div'); tmp.innerHTML = html;
+  const text = tmp.innerHTML;
+  let i = 0;
+  return new Promise(res => {
+    typing = setInterval(() => {
+      if (i >= text.length) { clearInterval(typing); res(); return; }
+      if (text[i] === '<') {
+        const end = text.indexOf('>', i);
+        el.innerHTML = text.slice(0, end+1) + '<span class="caret"></span>';
+        i = end + 1;
+      } else {
+        el.innerHTML = text.slice(0, i+1) + '<span class="caret"></span>';
+        i++;
+      }
+    }, speed);
+  });
+}
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setNode(name, s, t='') {
+  const el = document.querySelector(`.step[data-node="${name}"]`);
+  el.classList.remove('on','done'); el.classList.add(s);
+  el.querySelector('.t').textContent = t;
+}
+function anim(el, target, kind) {
+  const t0 = performance.now();
+  const tick = now => {
+    const p = Math.min(1, (now - t0) / 900);
+    const v = (1 - Math.pow(1 - p, 3)) * target;
+    if (kind === 'hr') el.innerHTML = v.toFixed(1) + '<span class="u">h</span>';
+    else if (kind === 'pct') el.innerHTML = Math.round(v) + '<span class="u">%</span>';
+    else el.textContent = Math.round(v).toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+async function run() {
+  document.getElementById('run').disabled = true;
+  document.getElementById('runid').textContent = 'c23a5a22346e';
+  document.getElementById('status').textContent = 'LIVE';
+  document.getElementById('lat').textContent = '0.00s';
+
+  const t0 = performance.now();
+  const tick = () => {
+    if (document.getElementById('status').textContent === 'COMPLETE') return;
+    document.getElementById('lat').textContent = ((performance.now() - t0)/1000).toFixed(2) + 's';
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+
+  setNode('fetch','on'); await wait(400); setNode('fetch','done','0.9s');
+  setNode('parse','on'); await wait(500); setNode('parse','done','2.1s');
+
+  setNode('sleep','on');
+  document.getElementById('node-lbl').textContent = 'sleep';
+  document.getElementById('xc').textContent = '—';
+  await typeInto(document.getElementById('code'), SLEEP_CODE, 5);
+  document.getElementById('code').innerHTML = document.getElementById('code').innerHTML.replace(/<span class="caret"><\/span>/g,'');
+  document.getElementById('stdout').textContent = `METRICS_JSON: {"avg_duration_hr": 7.6, "avg_efficiency": 0.95, "trend": "up"}`;
+  document.getElementById('xc').textContent = '0';
+  document.getElementById('exec-time').textContent = '2.24s';
+  anim(document.getElementById('k-sleep'), 7.6, 'hr');
+  anim(document.getElementById('k-eff'), 95, 'pct');
+  document.getElementById('d-sleep').textContent = '▲ 0.4h vs last week';
+  document.getElementById('d-eff').textContent = '▲ 3% vs last week';
+  document.getElementById('cb-sleep').classList.add('on');
+  setNode('sleep','done','3.4s');
+  await wait(500);
+
+  setNode('activity','on');
+  document.getElementById('node-lbl').textContent = 'activity';
+  document.getElementById('xc').textContent = '—';
+  await typeInto(document.getElementById('code'), ACTIVITY_CODE, 4);
+  document.getElementById('code').innerHTML = document.getElementById('code').innerHTML.replace(/<span class="caret"><\/span>/g,'');
+  document.getElementById('stdout').textContent = `METRICS_JSON: {"avg_steps": 7505, "avg_active_kcal": 454, "avg_exercise_min": 29, "trend": "stable"}`;
+  document.getElementById('xc').textContent = '0';
+  document.getElementById('exec-time').textContent = '1.81s';
+  anim(document.getElementById('k-steps'), 7505);
+  anim(document.getElementById('k-kcal'), 454);
+  document.getElementById('d-steps').textContent = '◆ stable';
+  document.getElementById('d-steps').classList.remove('bad');
+  document.getElementById('d-kcal').innerHTML = '▼ 26 kcal <span style="color:var(--ink-mute)">below target</span>';
+  document.getElementById('d-kcal').classList.add('bad');
+  document.getElementById('cb-activity').classList.add('on');
+  setNode('activity','done','2.9s');
+  await wait(500);
+
+  setNode('synthesize','on');
+  const host = document.getElementById('insights'); host.innerHTML = '';
+  INSIGHTS.forEach((o, idx) => {
+    const el = document.createElement('div'); el.className = 'ins';
+    el.innerHTML = `<div class="c">${o.code}</div><div class="t">${o.text}</div><div class="sev ${o.sev==='WATCH'?'watch':''}">${o.sev}</div>`;
+    host.appendChild(el);
+    setTimeout(() => el.classList.add('on'), 120 + idx * 120);
+  });
+  await wait(700);
+  setNode('synthesize','done','0.6s');
+
+  setNode('plan','on'); await wait(500);
+  document.getElementById('plan').textContent = PLAN;
+  document.getElementById('plan').classList.add('on');
+  setNode('plan','done','1.1s');
+
+  document.getElementById('status').textContent = 'COMPLETE';
+  document.getElementById('run').disabled = false;
+}
+
+document.getElementById('run').addEventListener('click', run);
+document.getElementById('reset').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>

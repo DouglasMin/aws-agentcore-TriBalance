@@ -297,6 +297,7 @@
   background: rgba(245,158,11,0.04);
 }
 .upload-zone.ok { border-color: var(--success); color: var(--success); }
+.upload-zone.error { border-color: var(--danger); color: var(--danger); }
 .upload-zone input { display: none; }
 .upload-status {
   font-family: var(--font-mono);

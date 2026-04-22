@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>TriBalance · Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Fraunces:wght@300;900&family=Archivo:wght@900&family=Syne+Mono&family=IBM+Plex+Mono:wght@700&display=swap" rel="stylesheet" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0e0e10;
+  color: #eaeae4;
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 100vh;
+  padding: 60px 40px;
+}
+.head { max-width: 1200px; margin: 0 auto 44px; }
+.head h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 300; font-size: 56px; letter-spacing: -0.03em;
+  line-height: 1;
+}
+.head h1 em { font-style: italic; color: #ff6b6b; }
+.head p {
+  color: #8a8a80; margin-top: 12px;
+  font-size: 13px; letter-spacing: 0.04em;
+  max-width: 760px; line-height: 1.6;
+}
+.grid {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+}
+a.card {
+  display: block; min-height: 540px;
+  padding: 28px 26px 26px;
+  background: #141418;
+  border: 1px solid #26262c;
+  color: #eaeae4;
+  text-decoration: none;
+  transition: all .2s ease;
+  position: relative; overflow: hidden;
+}
+a.card:hover { transform: translateY(-4px); border-color: #77ff9a; box-shadow: 0 14px 40px rgba(119,255,154,0.15); }
+.card .idx { font-size: 10px; letter-spacing: 0.3em; color: #777; font-family: 'JetBrains Mono', monospace; }
+.card h2 { font-size: 30px; margin: 12px 0 8px; font-weight: 700; letter-spacing: -0.02em; }
+.card .tagline { font-size: 12.5px; color: #b0b0a8; line-height: 1.55; margin-bottom: 22px; }
+.card .swatch-row { display: flex; gap: 6px; margin-bottom: 20px; }
+.card .sw { width: 30px; height: 30px; border: 1px solid rgba(255,255,255,0.1); }
+.card ul { list-style: none; font-size: 11.5px; color: #aaa; }
+.card ul li { padding: 7px 0; border-bottom: 1px dashed #2a2a32; letter-spacing: 0.02em; }
+.card ul li:last-child { border: 0; }
+.card ul li b { color: #eaeae4; font-weight: 500; }
+
+/* A — Operator (dark terminal) */
+.card.a { background: #07090a; }
+.card.a h2 { font-family: 'Syne Mono', monospace; color: #77ff9a; letter-spacing: 0.08em; }
+.card.a .sw.s1 { background: #07090a; }
+.card.a .sw.s2 { background: #77ff9a; }
+.card.a .sw.s3 { background: #ffd45a; }
+.card.a .sw.s4 { background: #d7e3df; }
+
+/* B — Dossier (dark editorial) */
+.card.b { background: #0b0e12; border-color: #1e2229; }
+.card.b h2 { font-family: 'Fraunces', serif; font-weight: 900; font-style: italic; color: #ebe6d9; }
+.card.b h2 em { font-style: italic; font-weight: 300; color: #d96b4e; }
+.card.b .tagline { color: #a29d8f; }
+.card.b .sw.s1 { background: #0b0e12; }
+.card.b .sw.s2 { background: #d96b4e; }
+.card.b .sw.s3 { background: #c49c5c; }
+.card.b .sw.s4 { background: #ebe6d9; }
+.card.b ul { color: #8a8372; }
+.card.b ul li { border-color: #1e2229; }
+.card.b ul li b { color: #ebe6d9; }
+
+/* C — Atlas (command center dark) */
+.card.c { background: #080a0c; border-color: #15191f; }
+.card.c h2 {
+  font-family: 'Archivo', sans-serif; font-weight: 900;
+  color: #f59e0b; letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.card.c .idx { color: #f59e0b; }
+.card.c .tagline { color: #b8bec6; }
+.card.c .sw.s1 { background: #080a0c; }
+.card.c .sw.s2 { background: #f59e0b; }
+.card.c .sw.s3 { background: #60a5fa; }
+.card.c .sw.s4 { background: #34d399; }
+.card.c ul { color: #717882; }
+.card.c ul li { border-color: #15191f; }
+.card.c ul li b { color: #e4e7eb; }
+
+.footer {
+  max-width: 1200px; margin: 40px auto 0;
+  font-size: 11px; letter-spacing: 0.14em;
+  color: #555;
+  text-align: center; text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>Pick a <em>direction</em>.</h1>
+    <p>Three standalone HTML mockups — same data, same pipeline, three very different aesthetics. All dark. All comparable. Open each, click <b>RUN</b>, and watch the LLM code stream in + charts render in real time. Same "wow" beats guide.md calls out, executed three ways.</p>
+  </div>
+
+  <div class="grid">
+    <a class="card a" href="./option-a-operator.html">
+      <div class="idx">OPTION A</div>
+      <h2>OPERATOR</h2>
+      <div class="tagline">Bloomberg-meets-terminal. Black background, phosphor green, IDE 3-pane layout. "We actually run code."</div>
+      <div class="swatch-row"><div class="sw s1"></div><div class="sw s2"></div><div class="sw s3"></div><div class="sw s4"></div></div>
+      <ul>
+        <li><b>Tone</b> — cold, technical, live</li>
+        <li><b>Font</b> — JetBrains Mono · Syne Mono</li>
+        <li><b>Layout</b> — 3-pane IDE: timeline · code+stdout · artifacts</li>
+        <li><b>Signature</b> — phosphor pulse · scanlines · caret</li>
+        <li><b>Best for</b> — engineer portfolio, tech blog post</li>
+      </ul>
+    </a>
+
+    <a class="card b" href="./option-b-dossier.html">
+      <div class="idx">OPTION B</div>
+      <h2>Dos<em>sier</em></h2>
+      <div class="tagline">FT Weekend in midnight edition. Cream serif on near-black, terracotta + gold, drop caps, big editorial numbers. Premium health publication.</div>
+      <div class="swatch-row"><div class="sw s1"></div><div class="sw s2"></div><div class="sw s3"></div><div class="sw s4"></div></div>
+      <ul>
+        <li><b>Tone</b> — editorial, premium, quiet</li>
+        <li><b>Font</b> — Fraunces serif · Spectral · JetBrains Mono</li>
+        <li><b>Layout</b> — masthead · KPI hero · 2-col spread · prescription</li>
+        <li><b>Signature</b> — gold rules · drop caps · serif italics</li>
+        <li><b>Best for</b> — product portfolio, consumer brand</li>
+      </ul>
+    </a>
+
+    <a class="card c" href="./option-c-atlas.html">
+      <div class="idx">OPTION C</div>
+      <h2>ATLAS</h2>
+      <div class="tagline">Mission-control / data wall. Graphite grid, amber alarm + data-blue, panels with coordinate IDs (A-01 / D-02). Feels like NASA command.</div>
+      <div class="swatch-row"><div class="sw s1"></div><div class="sw s2"></div><div class="sw s3"></div><div class="sw s4"></div></div>
+      <ul>
+        <li><b>Tone</b> — dense, analytical, surveillance-grade</li>
+        <li><b>Font</b> — Archivo · IBM Plex Mono · IBM Plex Sans</li>
+        <li><b>Layout</b> — 12-col data wall, zoned panels with coord IDs</li>
+        <li><b>Signature</b> — grid overlay · live timecode · severity tags</li>
+        <li><b>Best for</b> — technical demo, dashboard-first use</li>
+      </ul>
+    </a>
+  </div>
+
+  <div class="footer">Click RUN on any option to simulate the full 6-node pipeline with the real fixture data.</div>
+</body>
+</html>

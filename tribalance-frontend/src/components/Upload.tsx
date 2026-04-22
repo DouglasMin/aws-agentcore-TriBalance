@@ -3,6 +3,7 @@ import { useInvoke } from '../hooks/useSSE';
 import { useRunStore } from '../store/runStore';
 
 const PROXY_URL = import.meta.env.VITE_PROXY_URL || '';
+const SAMPLE_S3_KEY = 'samples/export_sample.xml';
 
 interface PresignResponse {
   url: string;
@@ -10,28 +11,28 @@ interface PresignResponse {
   expires_in: number;
 }
 
+type UploadState =
+  | { kind: 'idle' }
+  | { kind: 'uploading'; name: string }
+  | { kind: 'uploaded'; name: string; s3Key: string }
+  | { kind: 'error'; message: string };
+
 export function Upload() {
   const { invoke, abort } = useInvoke();
   const reset = useRunStore((s) => s.reset);
   const status = useRunStore((s) => s.status);
   const fileRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
-  const [filename, setFilename] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string>('drop XML here · or click');
-  const [uploading, setUploading] = useState(false);
+  const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
 
   async function handleFile(f: File) {
-    setFilename(f.name);
-    setMsg(`uploading ${(f.size / 1024).toFixed(0)} KB…`);
-    setUploading(true);
+    setUpload({ kind: 'uploading', name: f.name });
 
     if (!PROXY_URL) {
-      setMsg('VITE_PROXY_URL not set');
-      setUploading(false);
+      setUpload({ kind: 'error', message: 'VITE_PROXY_URL not set' });
       return;
     }
 
-    // 1. ask proxy for a presigned PUT URL
     let pre: PresignResponse;
     try {
       const resp = await fetch(`${PROXY_URL}/upload-url`, {
@@ -42,32 +43,27 @@ export function Upload() {
           content_type: f.type || 'application/xml',
         }),
       });
-      if (!resp.ok) throw new Error(`presign: ${resp.status}`);
+      if (!resp.ok) throw new Error(`presign: HTTP ${resp.status}`);
       pre = (await resp.json()) as PresignResponse;
-    } catch (err) {
-      setMsg(`presign failed: ${String(err)}`);
-      setUploading(false);
+    } catch (err: unknown) {
+      setUpload({ kind: 'error', message: `presign failed: ${errMsg(err)}` });
       return;
     }
 
-    // 2. PUT to S3
     try {
       const putResp = await fetch(pre.url, {
         method: 'PUT',
         headers: { 'Content-Type': f.type || 'application/xml' },
         body: f,
       });
-      if (!putResp.ok) throw new Error(`PUT: ${putResp.status}`);
-    } catch (err) {
-      setMsg(`upload failed: ${String(err)}`);
-      setUploading(false);
+      if (!putResp.ok) throw new Error(`PUT: HTTP ${putResp.status}`);
+    } catch (err: unknown) {
+      setUpload({ kind: 'error', message: `upload failed: ${errMsg(err)}` });
       return;
     }
 
-    setMsg(`uploaded · ${pre.key}`);
-    setUploading(false);
+    setUpload({ kind: 'uploaded', name: f.name, s3Key: pre.key });
 
-    // 3. invoke agent
     await invoke({
       s3_key: pre.key,
       week_start: new Date().toISOString().slice(0, 10),
@@ -86,12 +82,33 @@ export function Upload() {
     if (f) void handleFile(f);
   }
 
-  const busy = status === 'live' || uploading;
+  function runCurrent() {
+    if (upload.kind === 'uploaded') {
+      reset();
+      void invoke({
+        s3_key: upload.s3Key,
+        week_start: new Date().toISOString().slice(0, 10),
+      });
+    }
+  }
+
+  function runSample() {
+    reset();
+    setUpload({ kind: 'uploaded', name: 'export_sample.xml', s3Key: SAMPLE_S3_KEY });
+    void invoke({
+      s3_key: SAMPLE_S3_KEY,
+      week_start: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  const busy = status === 'live' || upload.kind === 'uploading';
+  const labelText = zoneLabel(upload);
+  const labelClass = zoneClass(upload, drag);
 
   return (
     <div className="upload">
       <label
-        className={`upload-zone ${drag ? 'drag' : ''} ${filename && !uploading ? 'ok' : ''}`.trim()}
+        className={`upload-zone ${labelClass}`.trim()}
         onDragOver={(e) => {
           e.preventDefault();
           setDrag(true);
@@ -106,7 +123,7 @@ export function Upload() {
           disabled={busy}
           onChange={onInputChange}
         />
-        {filename ? `${filename}` : msg}
+        {labelText}
       </label>
       {status === 'live' ? (
         <button
@@ -118,25 +135,48 @@ export function Upload() {
         >
           ABORT
         </button>
+      ) : upload.kind === 'uploaded' && status === 'complete' ? (
+        <button className="btn" onClick={runCurrent}>
+          ▶ RUN AGAIN
+        </button>
+      ) : upload.kind === 'uploaded' ? (
+        <button className="btn" disabled={busy} onClick={runCurrent}>
+          ▶ ENGAGE
+        </button>
+      ) : upload.kind === 'error' ? (
+        <button className="btn ghost" onClick={() => setUpload({ kind: 'idle' })}>
+          CLEAR
+        </button>
       ) : (
-        <button
-          className="btn"
-          disabled={busy}
-          onClick={() => {
-            // Quick demo path: if no file yet, kick off with the bundled sample.
-            if (!filename) {
-              setMsg('using s3 sample');
-              void invoke({
-                s3_key: 'samples/export_sample.xml',
-                week_start: new Date().toISOString().slice(0, 10),
-              });
-              return;
-            }
-          }}
-        >
-          {status === 'complete' ? '▶ RUN AGAIN' : '▶ ENGAGE'}
+        <button className="btn" disabled={busy} onClick={runSample}>
+          ▶ RUN SAMPLE
         </button>
       )}
     </div>
   );
+}
+
+function zoneLabel(u: UploadState): string {
+  switch (u.kind) {
+    case 'idle':
+      return 'drop XML · or click · or use sample →';
+    case 'uploading':
+      return `uploading ${u.name}…`;
+    case 'uploaded':
+      return `${u.name} · ${u.s3Key}`;
+    case 'error':
+      return `✖ ${u.message}`;
+  }
+}
+
+function zoneClass(u: UploadState, drag: boolean): string {
+  if (drag) return 'drag';
+  if (u.kind === 'uploaded') return 'ok';
+  if (u.kind === 'error') return 'error';
+  return '';
+}
+
+function errMsg(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
 }
