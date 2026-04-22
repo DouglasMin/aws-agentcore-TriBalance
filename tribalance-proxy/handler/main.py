@@ -14,20 +14,10 @@ Non-streaming routes return a plain dict (buffered HTTP response).
 from __future__ import annotations
 
 import json
-import os
 
+from handler.cors import cors_origin
 from handler.invoke import stream_invoke
 from handler.presign import mint_artifact_url, mint_upload_url
-
-_ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-
-
-def _cors_origin(event: dict) -> str:
-    """Pick the response Access-Control-Allow-Origin based on request Origin header
-    matched against ALLOWED_ORIGINS env. Falls back to the first allowlist entry
-    if no match (some browsers accept any string, but our list stays honest)."""
-    origin = (event.get("headers") or {}).get("origin", "")
-    return origin if origin in _ALLOWED_ORIGINS else _ALLOWED_ORIGINS[0]
 
 
 def lambda_handler(event, context=None):
@@ -67,7 +57,7 @@ def _cors_preflight(event: dict) -> dict:
     return {
         "statusCode": 204,
         "headers": {
-            "Access-Control-Allow-Origin": _cors_origin(event),
+            "Access-Control-Allow-Origin": cors_origin(event),
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "600",
@@ -80,7 +70,7 @@ def _not_found(event: dict, path: str) -> dict:
         "statusCode": 404,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": _cors_origin(event),
+            "Access-Control-Allow-Origin": cors_origin(event),
         },
         "body": json.dumps({"error": f"no route: {path}"}),
     }
