@@ -113,6 +113,21 @@
 .vital .delta.bad { color: var(--danger); }
 
 /* ---------- pipeline status ---------- */
+.status .connecting {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0 12px;
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.22em;
+  color: var(--warn);
+  text-transform: uppercase;
+  animation: pulse 1.2s infinite;
+}
+.status .connecting-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 12px var(--warn);
+  animation: pulse 1.2s infinite;
+}
 .status .pipe {
   display: flex; flex-direction: column; gap: 7px;
   flex: 1;
@@ -131,7 +146,7 @@
   margin-left: 4px;
 }
 .status .step.on  { color: var(--ink); }
-.status .step.on .d  { border-color: var(--warn); background: var(--warn); box-shadow: 0 0 10px var(--warn); }
+.status .step.on .d  { border-color: var(--warn); background: var(--warn); box-shadow: 0 0 10px var(--warn); animation: pulse 1.2s infinite; }
 .status .step.done { color: var(--success); }
 .status .step.done .d { border-color: var(--success); background: var(--success); }
 .status .step .t { font-size: 9.5px; color: var(--ink-mute); letter-spacing: 0.14em; }

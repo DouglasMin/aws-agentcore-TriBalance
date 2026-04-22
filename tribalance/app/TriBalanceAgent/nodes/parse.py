@@ -138,6 +138,8 @@ def parse_node(state: TriBalanceState) -> dict:
     return {
         "sleep_csv": sleep_out.getvalue(),
         "activity_csv": act_out.getvalue(),
+        "sleep_series": sleep_series,
+        "activity_series": activity_series,
         "parse_summary": {
             "sleep_records": sleep_records,
             "activity_records": activity_records,

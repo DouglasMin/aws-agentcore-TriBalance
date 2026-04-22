@@ -1,24 +1,40 @@
 # TriBalance Proxy
 
 Lambda Function URL that sits between the TriBalance frontend and the AgentCore
-Runtime. Three responsibilities:
+Runtime. Uses **Lambda Web Adapter (LWA)** + **FastAPI** for true real-time SSE
+streaming.
 
-1. **`POST /invoke`** — forward a user invocation to the AgentCore agent and
-   stream SSE events back to the browser. Uses `RESPONSE_STREAM` Function URL
-   invoke mode; the handler yields `data: {json}\n\n` frames from a
-   boto3 `invoke_agent_runtime` streaming response.
-2. **`POST /upload-url`** — mint a presigned PUT URL (5-min TTL) for direct-
-   to-S3 upload of the Apple Health XML. Body: `{filename?, content_type?}`.
-   Key layout: `samples/{run_id}/{filename}` under `INPUT_BUCKET`.
-3. **`GET /artifact?key=...`** — mint a presigned GET URL for chart artifacts
-   under `ARTIFACTS_BUCKET`. Key must start with `runs/` (traversal-safe).
-   Currently unused by the recharts frontend but kept for future "view raw
-   PNG" links.
+## Architecture
+
+```
+Browser (fetch + ReadableStream)
+  │
+  ▼  POST /invoke
+Lambda Function URL (RESPONSE_STREAM)
+  │
+  ▼
+Lambda Web Adapter (LWA layer)
+  │  forwards HTTP to localhost:8080
+  ▼
+FastAPI / uvicorn (handler/app.py)
+  │
+  ├─ POST /invoke     → StreamingResponse(SSE) ← AgentCore Runtime
+  ├─ POST /upload-url  → presigned PUT URL (S3)
+  ├─ GET  /artifact    → presigned GET URL (S3)
+  └─ GET  /health      → 200 OK (LWA readiness check)
+```
+
+**Why LWA?** Python Lambda managed runtime cannot natively stream generator
+responses (only Node.js supports `RESPONSE_STREAM` natively). LWA runs a real
+HTTP server (uvicorn) inside Lambda and proxies the Function URL request to it,
+enabling FastAPI's `StreamingResponse` to yield SSE frames in real time.
 
 ## Stack
 
 - AWS CDK (Python)
 - Lambda Python 3.12 runtime
+- Lambda Web Adapter v1.0.0 layer (x86_64)
+- FastAPI + uvicorn (deps layer, built at synth time)
 - Function URL, `AuthType=NONE`, `InvokeMode=RESPONSE_STREAM`, CORS for localhost
 - Region: `ap-northeast-2`, Account: `612529367436`
 
@@ -33,7 +49,7 @@ uv sync --extra dev
 Tests:
 ```bash
 uv run pytest -q
-# 16 passed: stack synth + SSE invoke (5) + presign (10)
+# 23 passed: FastAPI app (7) + SSE invoke (5) + presign (10) + stack synth (1)
 ```
 
 Synth (no deploy, just render CloudFormation):

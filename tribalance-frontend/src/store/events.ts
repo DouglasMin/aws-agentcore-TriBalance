@@ -46,6 +46,8 @@ export interface FinalReport {
     activity_records: number;
     period_days: number;
   };
+  sleep_series?: SleepPoint[];
+  activity_series?: ActivityPoint[];
   metrics?: {
     sleep?: { avg: Record<string, number>; trend: Trend; chart_s3_key: string };
     activity?: { avg: Record<string, number>; trend: Trend; chart_s3_key: string };

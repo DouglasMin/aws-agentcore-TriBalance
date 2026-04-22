@@ -2,11 +2,16 @@
 
 Two routes:
   POST /upload-url         — client wants to upload an Apple Health XML
-  GET  /artifact?key=...   — client wants to read a chart artifact (unused by
-                             the recharts frontend but kept for future).
+  GET  /artifact?key=...   — client wants to read a chart artifact
 
 Both return a short-TTL (5 min) presigned URL the browser can hit directly —
 browser-to-S3 traffic bypasses Lambda, so a 100 MB+ XML never transits us.
+
+Two entry-point styles per route:
+  - ``mint_upload_url(event)`` / ``mint_artifact_url(event)`` — legacy Lambda
+    event dict (kept for backward compat and tests)
+  - ``mint_upload_url_fastapi(body)`` / ``mint_artifact_url_fastapi(key)`` —
+    FastAPI route helpers that return ``{"status": int, "body": dict}``
 """
 
 from __future__ import annotations
@@ -40,14 +45,16 @@ def _artifacts_bucket() -> str:
 
 
 def _s3_client():
-    # signature_version='s3v4' is required for non-us-east-1 buckets with
-    # presigned URLs.
     return boto3.client(
         "s3",
         region_name=_region(),
         config=Config(signature_version="s3v4"),
     )
 
+
+# ---------------------------------------------------------------------------
+# Legacy Lambda event-dict entry points (kept for tests)
+# ---------------------------------------------------------------------------
 
 def _json_response(event: dict, status: int, body: dict) -> dict:
     return {
@@ -67,15 +74,45 @@ def mint_upload_url(event: dict) -> dict:
     except json.JSONDecodeError:
         return _json_response(event, 400, {"error": "invalid JSON body"})
 
+    result = _do_mint_upload(body)
+    return _json_response(event, result["status"], result["body"])
+
+
+def mint_artifact_url(event: dict) -> dict:
+    """GET /artifact?key=... — presigned GET URL under ARTIFACTS_BUCKET."""
+    qs = event.get("queryStringParameters") or {}
+    key = qs.get("key", "")
+    result = _do_mint_artifact(key)
+    return _json_response(event, result["status"], result["body"])
+
+
+# ---------------------------------------------------------------------------
+# FastAPI entry points
+# ---------------------------------------------------------------------------
+
+def mint_upload_url_fastapi(body: dict) -> dict:
+    """FastAPI route helper. Returns {"status": int, "body": dict}."""
+    return _do_mint_upload(body)
+
+
+def mint_artifact_url_fastapi(key: str) -> dict:
+    """FastAPI route helper. Returns {"status": int, "body": dict}."""
+    return _do_mint_artifact(key)
+
+
+# ---------------------------------------------------------------------------
+# Shared implementation
+# ---------------------------------------------------------------------------
+
+def _do_mint_upload(body: dict) -> dict:
     filename = body.get("filename") or f"upload_{uuid.uuid4().hex[:8]}.xml"
     content_type = body.get("content_type") or "application/xml"
 
     if not _FILENAME_PATTERN.match(filename):
-        return _json_response(
-            event,
-            400,
-            {"error": "filename must match [A-Za-z0-9._-]+"},
-        )
+        return {
+            "status": 400,
+            "body": {"error": "filename must match [A-Za-z0-9._-]+"},
+        }
 
     run_id = uuid.uuid4().hex[:12]
     key = f"samples/{run_id}/{filename}"
@@ -91,32 +128,23 @@ def mint_upload_url(event: dict) -> dict:
             ExpiresIn=_TTL_SEC,
             HttpMethod="PUT",
         )
-    except Exception as e:  # noqa: BLE001 — return details to client
-        return _json_response(event, 500, {"error": f"presign failed: {e}"})
+    except Exception as e:
+        return {"status": 500, "body": {"error": f"presign failed: {e}"}}
 
-    return _json_response(
-        event,
-        200,
-        {"url": url, "key": key, "expires_in": _TTL_SEC},
-    )
+    return {
+        "status": 200,
+        "body": {"url": url, "key": key, "expires_in": _TTL_SEC},
+    }
 
 
-def mint_artifact_url(event: dict) -> dict:
-    """GET /artifact?key=... — presigned GET URL under ARTIFACTS_BUCKET.
-
-    Security: key must start with ``runs/`` and match the safe charset
-    (no path-traversal, no absolute paths).
-    """
-    qs = event.get("queryStringParameters") or {}
-    key = qs.get("key")
-
+def _do_mint_artifact(key: str) -> dict:
     if not key:
-        return _json_response(event, 400, {"error": "query param 'key' is required"})
+        return {"status": 400, "body": {"error": "query param 'key' is required"}}
 
     if key.startswith("/") or ".." in key or not _KEY_PATTERN.match(key):
-        return _json_response(event, 400, {"error": f"invalid key: {key}"})
+        return {"status": 400, "body": {"error": f"invalid key: {key}"}}
     if not key.startswith("runs/"):
-        return _json_response(event, 403, {"error": "key must be under runs/"})
+        return {"status": 403, "body": {"error": "key must be under runs/"}}
 
     try:
         url = _s3_client().generate_presigned_url(
@@ -125,11 +153,10 @@ def mint_artifact_url(event: dict) -> dict:
             ExpiresIn=_TTL_SEC,
             HttpMethod="GET",
         )
-    except Exception as e:  # noqa: BLE001
-        return _json_response(event, 500, {"error": f"presign failed: {e}"})
+    except Exception as e:
+        return {"status": 500, "body": {"error": f"presign failed: {e}"}}
 
-    return _json_response(
-        event,
-        200,
-        {"url": url, "key": key, "expires_in": _TTL_SEC},
-    )
+    return {
+        "status": 200,
+        "body": {"url": url, "key": key, "expires_in": _TTL_SEC},
+    }

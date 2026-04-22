@@ -28,6 +28,8 @@ class TriBalanceState(TypedDict, total=False):
     sleep_csv: str
     activity_csv: str
     parse_summary: dict
+    sleep_series: list[dict]
+    activity_series: list[dict]
 
     # analysis
     sleep_metrics: Metrics

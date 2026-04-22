@@ -136,6 +136,8 @@ async def invoke(payload: dict, context: Any = None) -> AsyncGenerator[dict, Non
                 "run_id": run_id,
                 "period": week_start or "",
                 "parse_summary": final_state.get("parse_summary"),
+                "sleep_series": final_state.get("sleep_series", []),
+                "activity_series": final_state.get("activity_series", []),
                 "metrics": {
                     "sleep": final_state.get("sleep_metrics"),
                     "activity": final_state.get("activity_metrics"),

@@ -51,6 +51,7 @@ interface RunState {
 
   // actions
   reset: () => void;
+  setConnecting: () => void;
   dispatch: (event: AgentEvent) => void;
 }
 
@@ -106,6 +107,13 @@ export const useRunStore = create<RunState>((set) => ({
       activityMetrics: null,
       insights: [],
       plan: '',
+    }),
+
+  setConnecting: () =>
+    set({
+      status: 'live' as RunStatus,
+      startedAt: Date.now(),
+      nodes: { ...INITIAL_NODES, fetch: 'active' },
     }),
 
   dispatch: (e) =>
@@ -183,11 +191,42 @@ export const useRunStore = create<RunState>((set) => ({
 
         case 'complete': {
           const r = e.report;
-          return {
+          const patch: Partial<RunState> = {
             status: 'complete' as RunStatus,
             insights: r.insights ?? s.insights,
             plan: r.plan ?? s.plan,
           };
+
+          // Backfill metrics from the report if individual `metrics` events
+          // didn't arrive (AgentCore may not relay all intermediate events).
+          if (r.metrics?.sleep && !s.sleepMetrics) {
+            const sm = r.metrics.sleep;
+            patch.sleepMetrics = {
+              avg_duration_hr: sm.avg?.avg_duration_hr ?? 0,
+              avg_efficiency: sm.avg?.avg_efficiency ?? 0,
+              trend: sm.trend ?? 'stable',
+            };
+          }
+          if (r.metrics?.activity && !s.activityMetrics) {
+            const am = r.metrics.activity;
+            patch.activityMetrics = {
+              avg_steps: am.avg?.avg_steps ?? 0,
+              avg_active_kcal: am.avg?.avg_active_kcal ?? 0,
+              avg_exercise_min: am.avg?.avg_exercise_min ?? 0,
+              trend: am.trend ?? 'stable',
+            };
+          }
+
+          // Backfill series data from the report if `parsed_series` event
+          // didn't arrive.
+          if (r.sleep_series?.length && s.sleepSeries.length === 0) {
+            patch.sleepSeries = r.sleep_series;
+          }
+          if (r.activity_series?.length && s.activitySeries.length === 0) {
+            patch.activitySeries = r.activity_series;
+          }
+
+          return patch;
         }
 
         case 'error':

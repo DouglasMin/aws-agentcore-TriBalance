@@ -1,16 +1,24 @@
 """TriBalance proxy CDK stack.
 
-One Lambda function (Python 3.12), exposed via Function URL with response
-streaming enabled (needed for SSE). IAM role grants:
+Uses Lambda Web Adapter (LWA) to run a FastAPI app inside Lambda, enabling
+true SSE response streaming via Function URL RESPONSE_STREAM mode.
+
+Architecture:
+  - Lambda layer: LWA v1.0.0 (public ECR layer)
+  - Lambda layer: Python deps (fastapi, uvicorn, etc.) built locally
+  - Handler: run.sh → uvicorn handler.app:app
+  - LWA forwards Function URL requests to the FastAPI app on port 8080
+  - FastAPI StreamingResponse yields SSE frames in real time
+
+IAM role grants:
   - bedrock-agentcore:InvokeAgentRuntime  (to forward user invocations)
   - s3:GetObject / s3:PutObject           (to mint presigned URLs)
-  - secretsmanager:GetSecretValue         (future; not wired now)
-
-Subsequent tasks (P-02, P-03, P-04) will fill in handler logic and CORS.
 """
 
 from __future__ import annotations
 
+import subprocess
+import tempfile
 from pathlib import Path
 
 from aws_cdk import (
@@ -29,22 +37,61 @@ AGENTCORE_AGENT_ARN = (
 INPUT_BUCKET = "tribalance-input"
 ARTIFACTS_BUCKET = "tribalance-artifacts"
 
+# Lambda Web Adapter v1.0.0 public layer (x86_64)
+# See: https://github.com/aws/aws-lambda-web-adapter
+LWA_LAYER_ARN = "arn:aws:lambda:ap-northeast-2:753240598075:layer:LambdaAdapterLayerX86:27"
+
+# Python packages that must be present in the Lambda environment for the
+# FastAPI/uvicorn app to run. boto3/botocore ship with the Lambda runtime.
+_PIP_DEPS = ["fastapi", "uvicorn"]
+
+
+def _build_deps_layer_code() -> lambda_.Code:
+    """pip-install FastAPI + uvicorn into a temp dir structured as a layer.
+
+    Layer zip layout:  python/lib/python3.12/site-packages/...
+    Lambda automatically adds this to sys.path.
+    """
+    tmp = tempfile.mkdtemp(prefix="tribalance-deps-")
+    target = Path(tmp) / "python"
+    subprocess.check_call(  # noqa: S603
+        [  # noqa: S607
+            "uv", "pip", "install", "--quiet",
+            "--python-platform", "x86_64-manylinux2014",
+            "--python-version", "3.12",
+            "--target", str(target),
+            *_PIP_DEPS,
+        ],
+    )
+    return lambda_.Code.from_asset(tmp)
+
 
 class TriBalanceProxyStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Zip the project root so the `handler/` directory is preserved as a
-        # package inside the Lambda deployment (not flattened to root files).
-        # This lets main.py keep `from handler.cors import cors_origin` etc —
-        # the same import path that pytest uses locally.
         project_root = str(Path(__file__).parent.parent)
+
+        # LWA layer — enables streaming from a FastAPI/uvicorn app
+        lwa_layer = lambda_.LayerVersion.from_layer_version_arn(
+            self, "LWALayer", LWA_LAYER_ARN
+        )
+
+        # Python deps layer — fastapi + uvicorn (not in Lambda runtime)
+        deps_layer = lambda_.LayerVersion(
+            self,
+            "DepsLayer",
+            code=_build_deps_layer_code(),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_12],
+            description="FastAPI + uvicorn for TriBalance proxy",
+        )
 
         proxy_fn = lambda_.Function(
             self,
             "ProxyFunction",
             runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="handler.main.lambda_handler",
+            # LWA intercepts the handler; run.sh starts uvicorn
+            handler="run.sh",
             code=lambda_.Code.from_asset(
                 project_root,
                 exclude=[
@@ -58,7 +105,6 @@ class TriBalanceProxyStack(Stack):
                     "infra/**",
                     "cdk.out",
                     "cdk.out/**",
-                    "app.py",
                     "cdk.json",
                     "pyproject.toml",
                     "uv.lock",
@@ -68,6 +114,7 @@ class TriBalanceProxyStack(Stack):
                     ".pytest_cache/**",
                 ],
             ),
+            layers=[lwa_layer, deps_layer],
             timeout=Duration.minutes(5),
             memory_size=512,
             environment={
@@ -76,6 +123,14 @@ class TriBalanceProxyStack(Stack):
                 "INPUT_BUCKET": INPUT_BUCKET,
                 "ARTIFACTS_BUCKET": ARTIFACTS_BUCKET,
                 "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173",
+                # LWA configuration
+                "AWS_LWA_PORT": "8080",
+                "AWS_LWA_READINESS_CHECK_PATH": "/health",
+                "AWS_LWA_INVOKE_MODE": "response_stream",
+                # Tell Lambda to use the LWA bootstrap wrapper
+                "AWS_LAMBDA_EXEC_WRAPPER": "/opt/bootstrap",
+                # Ensure deps layer is on PYTHONPATH (belt + suspenders)
+                "PYTHONPATH": "/opt/python:/var/task:/var/runtime:/var/lang/lib/python3.12/site-packages",
             },
         )
 
@@ -111,8 +166,6 @@ class TriBalanceProxyStack(Stack):
                     "http://localhost:5173",
                     "http://127.0.0.1:5173",
                 ],
-                # OPTIONS is auto-handled by Function URL service — not a
-                # valid enum value here (CloudFormation validation rejects it).
                 allowed_methods=[
                     lambda_.HttpMethod.GET,
                     lambda_.HttpMethod.POST,

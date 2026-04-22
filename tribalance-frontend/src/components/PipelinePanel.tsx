@@ -17,9 +17,19 @@ interface Props { zone?: string }
 
 export function PipelinePanel({ zone }: Props = {}) {
   const nodes = useRunStore((s) => s.nodes);
+  const status = useRunStore((s) => s.status);
+  const runId = useRunStore((s) => s.runId);
+
+  const connecting = status === 'live' && !runId;
 
   return (
     <Panel id="B-01" title="PIPELINE / 6 NODES" zone={zone} className="status">
+      {connecting && (
+        <div className="connecting">
+          <span className="connecting-dot" />
+          <span>CONNECTING TO AGENTCORE…</span>
+        </div>
+      )}
       <div className="pipe">
         {STEPS.map(({ key, label }) => {
           const s = nodes[key];

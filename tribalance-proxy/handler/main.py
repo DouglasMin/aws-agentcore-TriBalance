@@ -1,14 +1,12 @@
-"""TriBalance proxy Lambda — Function URL entrypoint.
+"""TriBalance proxy Lambda — legacy entrypoint (kept for reference).
 
-Routes:
-  POST /invoke          → stream SSE from AgentCore agent (P-02)
-  POST /upload-url      → mint presigned PUT URL for input bucket (P-03)
-  GET  /artifact?key=.. → mint presigned GET URL for artifact (P-03, may be dropped)
+With Lambda Web Adapter, the actual entrypoint is ``handler/app.py`` (FastAPI)
+started by ``handler/run.sh``. This module is no longer used as the Lambda
+handler but is preserved so existing tests that import from it still work.
 
-The ``lambda_handler`` function is the entrypoint. When the Function URL is
-configured with ``InvokeMode=RESPONSE_STREAM``, the Lambda Python runtime
-streams bytes from a generator return value directly to the HTTP client.
-Non-streaming routes return a plain dict (buffered HTTP response).
+If you need to test the old Lambda-event-dict interface, use
+``handler.invoke.stream_invoke`` and ``handler.presign.mint_upload_url``
+directly.
 """
 
 from __future__ import annotations
@@ -21,12 +19,7 @@ from handler.presign import mint_artifact_url, mint_upload_url
 
 
 def lambda_handler(event, context=None):
-    """Streaming-capable entrypoint for the Lambda Function URL.
-
-    Returns:
-      - For ``POST /invoke``: a generator of bytes (SSE frames).
-      - For other routes: a dict (buffered JSON response).
-    """
+    """Legacy handler — not used with LWA but kept for backward compat."""
     path = _path(event)
     method = _method(event)
 
@@ -34,7 +27,21 @@ def lambda_handler(event, context=None):
         return _cors_preflight(event)
 
     if path == "/invoke" and method == "POST":
-        return stream_invoke(event)
+        # Buffer mode fallback: collect all SSE frames into a single response.
+        # This avoids the generator-not-serializable error if someone deploys
+        # without LWA.
+        frames = list(stream_invoke(event))
+        body = b"".join(frames)
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Access-Control-Allow-Origin": cors_origin(event),
+            },
+            "body": body.decode("utf-8"),
+            "isBase64Encoded": False,
+        }
 
     if path == "/upload-url" and method == "POST":
         return mint_upload_url(event)

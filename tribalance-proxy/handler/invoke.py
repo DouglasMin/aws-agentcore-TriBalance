@@ -1,12 +1,16 @@
-"""Stream AgentCore Runtime invocation as SSE to the Lambda Function URL client.
+"""Stream AgentCore Runtime invocation as SSE to the client.
+
+Two entry points:
+  - ``stream_invoke(event)`` — legacy Lambda event dict (kept for tests)
+  - ``stream_invoke_sse(body)`` — FastAPI route: takes parsed JSON body directly
 
 Architecture:
-  1. Parse incoming POST JSON body (it's the same payload shape the agent expects:
+  1. Parse incoming POST JSON body (same payload shape the agent expects:
      {"s3_key": "...", "week_start": "..."}).
   2. Call bedrock-agentcore.invoke_agent_runtime(agentRuntimeArn, payload).
   3. The boto3 response is a streaming body of JSON-line events.
   4. Transform each line into SSE format:  `data: {json}\n\n`
-  5. Yield bytes to the Function URL streaming response.
+  5. Yield bytes to the streaming response.
 
 The frontend consumes with fetch() + ReadableStream + TextDecoder and parses
 each `data: ...` chunk.
@@ -16,7 +20,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Iterable
+from typing import Generator
 
 import boto3
 
@@ -29,23 +33,11 @@ def _agent_arn() -> str:
     return os.environ["AGENTCORE_AGENT_ARN"]
 
 
-def stream_invoke(event: dict) -> Iterable[bytes]:
-    """Generator that yields SSE-formatted bytes to the Function URL response stream.
+def stream_invoke_sse(body: dict) -> Generator[bytes, None, None]:
+    """Generator that yields SSE-formatted bytes.
 
-    Lambda RESPONSE_STREAM mode consumes a generator of bytes and streams them to
-    the HTTP client. CORS headers are provided by the Function URL configuration
-    itself (not emitted in the body).
-
-    Each chunk yielded here is a single SSE frame: ``data: {json}\n\n``.
+    Called by the FastAPI route. Takes the already-parsed request body.
     """
-    # Parse request body
-    try:
-        raw = event.get("body") or "{}"
-        body = json.loads(raw)
-    except json.JSONDecodeError:
-        yield _sse({"event": "error", "message": "invalid JSON body"})
-        return
-
     # Required field validation
     if not body.get("s3_key"):
         yield _sse({"event": "error", "message": "payload.s3_key is required"})
@@ -63,7 +55,6 @@ def stream_invoke(event: dict) -> Iterable[bytes]:
         return
 
     # resp["response"] is a StreamingBody of \n-delimited JSON event chunks
-    # (AgentCore streams the @app.entrypoint yields as JSON lines).
     stream = resp.get("response")
     if stream is None:
         yield _sse({"event": "error", "message": "no response stream from AgentCore"})
@@ -91,12 +82,43 @@ def stream_invoke(event: dict) -> Iterable[bytes]:
         yield _sse(_parse_line(tail))
 
 
-def _parse_line(line: bytes) -> dict:
-    """Decode a single JSON-line event; fall back to raw wrapper if non-JSON."""
+def stream_invoke(event: dict) -> Generator[bytes, None, None]:
+    """Legacy Lambda event-dict entry point (used by tests and old handler).
+
+    Parses the body from the Lambda event and delegates to stream_invoke_sse.
+    """
     try:
-        return json.loads(line.decode("utf-8"))
+        raw = event.get("body") or "{}"
+        body = json.loads(raw)
     except json.JSONDecodeError:
-        return {"event": "raw", "data": line.decode("utf-8", errors="replace")}
+        yield _sse({"event": "error", "message": "invalid JSON body"})
+        return
+
+    yield from stream_invoke_sse(body)
+
+
+def _parse_line(line: bytes) -> dict:
+    """Decode a single line from the AgentCore stream.
+
+    AgentCore may emit lines in two formats:
+      - SSE-wrapped: ``data: {"event": ...}``  (with ``data: `` prefix)
+      - Raw JSON:    ``{"event": ...}``
+
+    We strip the ``data: `` prefix if present, then JSON-parse.
+    """
+    text = line.decode("utf-8", errors="replace")
+    # Strip SSE prefix if the AgentCore stream is already SSE-formatted
+    if text.startswith("data: "):
+        text = text[6:]
+    elif text.startswith("data:"):
+        text = text[5:]
+    text = text.strip()
+    if not text:
+        return {"event": "raw", "data": ""}
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {"event": "raw", "data": text}
 
 
 def _sse(obj: dict) -> bytes:

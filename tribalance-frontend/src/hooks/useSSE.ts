@@ -17,6 +17,7 @@ interface InvokePayload {
 export function useInvoke() {
   const dispatch = useRunStore((s) => s.dispatch);
   const reset = useRunStore((s) => s.reset);
+  const setConnecting = useRunStore((s) => s.setConnecting);
   const abortRef = useRef<AbortController | null>(null);
 
   const invoke = useCallback(
@@ -27,6 +28,9 @@ export function useInvoke() {
       abortRef.current = ctrl;
 
       reset();
+
+      // Immediate visual feedback — don't wait for the server
+      setConnecting();
 
       if (!PROXY_URL) {
         dispatch({
@@ -91,7 +95,7 @@ export function useInvoke() {
         }
       }
     },
-    [dispatch, reset],
+    [dispatch, reset, setConnecting],
   );
 
   const abort = useCallback(() => {
