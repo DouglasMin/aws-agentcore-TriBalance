@@ -85,10 +85,11 @@ class TriBalanceProxyStack(Stack):
                     "http://localhost:5173",
                     "http://127.0.0.1:5173",
                 ],
+                # OPTIONS is auto-handled by Function URL service — not a
+                # valid enum value here (CloudFormation validation rejects it).
                 allowed_methods=[
                     lambda_.HttpMethod.GET,
                     lambda_.HttpMethod.POST,
-                    lambda_.HttpMethod.OPTIONS,
                 ],
                 allowed_headers=["Content-Type", "Authorization"],
                 max_age=Duration.minutes(10),
