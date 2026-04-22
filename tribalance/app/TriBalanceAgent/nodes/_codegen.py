@@ -84,9 +84,13 @@ def run_codegen_loop(
 
             emit({"event": "metrics", "node": node_name, "metrics": metrics})
 
-            png_bytes = ci.read_file(chart_filename)
-            chart_key = f"runs/{run_id}/{chart_filename}"
-            s3.upload_bytes(artifacts_bucket, chart_key, png_bytes, content_type="image/png")
+            try:
+                png_bytes = ci.read_file(chart_filename)
+                chart_key = f"runs/{run_id}/{chart_filename}"
+                s3.upload_bytes(artifacts_bucket, chart_key, png_bytes, content_type="image/png")
+            except Exception as e:
+                last_error = f"post-execution I/O failed: {e}"
+                continue
 
             emit({
                 "event": "artifact",

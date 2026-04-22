@@ -103,38 +103,34 @@ def parse_node(state: TriBalanceState) -> dict:
     sleep_out = io.StringIO()
     sleep_w = csv.DictWriter(sleep_out, fieldnames=["date", "in_bed_min", "asleep_min"])
     sleep_w.writeheader()
-    for d in dates:
-        if d in sleep_by_date:
-            sleep_w.writerow({"date": d, **sleep_by_date[d]})
 
     act_out = io.StringIO()
     act_w = csv.DictWriter(act_out, fieldnames=["date", "steps", "active_kcal", "exercise_min"])
     act_w.writeheader()
-    for d in dates:
-        if d in activity_by_date:
-            act_w.writerow({"date": d, **activity_by_date[d]})
 
     sleep_series = []
+    activity_series = []
+
     for d in dates:
-        if d in sleep_by_date:
-            in_bed_min = sleep_by_date[d]["in_bed_min"]
-            asleep_min = sleep_by_date[d]["asleep_min"]
+        s = sleep_by_date.get(d)
+        if s is not None:
+            sleep_w.writerow({"date": d, **s})
+            in_bed_min = s["in_bed_min"]
+            asleep_min = s["asleep_min"]
             sleep_series.append({
                 "date": d,
                 "asleep_hr": round(asleep_min / 60, 2),
                 "in_bed_hr": round(in_bed_min / 60, 2),
-                "efficiency": round(asleep_min / in_bed_min, 3) if in_bed_min > 0 else 0.0,
+                "efficiency": round(min(asleep_min, in_bed_min) / in_bed_min, 3) if in_bed_min > 0 else 0.0,
             })
-
-    activity_series = []
-    for d in dates:
-        if d in activity_by_date:
-            act = activity_by_date[d]
+        a = activity_by_date.get(d)
+        if a is not None:
+            act_w.writerow({"date": d, **a})
             activity_series.append({
                 "date": d,
-                "steps": act["steps"],
-                "active_kcal": act["active_kcal"],
-                "exercise_min": act["exercise_min"],
+                "steps": a["steps"],
+                "active_kcal": a["active_kcal"],
+                "exercise_min": a["exercise_min"],
             })
 
     emit({"event": "parsed_series", "sleep": sleep_series, "activity": activity_series})

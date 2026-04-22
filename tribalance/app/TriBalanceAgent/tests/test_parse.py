@@ -2,7 +2,17 @@ import csv
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
+import events
 from nodes.parse import parse_node
+
+
+@pytest.fixture(autouse=True)
+def _clear_emitter():
+    events.set_emitter(None)
+    yield
+    events.set_emitter(None)
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "export_sample.xml"
@@ -105,14 +115,10 @@ def test_negative_minutes_record_is_skipped(tmp_path):
 
 
 def test_parse_emits_parsed_series_event():
-    import events as events_mod
     captured = []
-    events_mod.set_emitter(captured.append)
-    try:
-        state = {"local_xml_path": str(FIXTURE)}
-        parse_node(state)
-    finally:
-        events_mod.set_emitter(None)
+    events.set_emitter(captured.append)
+    state = {"local_xml_path": str(FIXTURE)}
+    parse_node(state)
 
     series_events = [e for e in captured if e.get("event") == "parsed_series"]
     assert len(series_events) == 1
@@ -133,7 +139,6 @@ def test_parse_emits_parsed_series_event():
 
 
 def test_parse_series_efficiency_zero_when_no_in_bed(tmp_path):
-    import events as events_mod
     # Only AsleepCore record, no InBed → in_bed_min stays 0
     xml = """
   <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Apple Watch"
@@ -142,13 +147,11 @@ def test_parse_series_efficiency_zero_when_no_in_bed(tmp_path):
 """
     state = {"local_xml_path": _write_xml(tmp_path, xml)}
     captured = []
-    events_mod.set_emitter(captured.append)
-    try:
-        parse_node(state)
-    finally:
-        events_mod.set_emitter(None)
+    events.set_emitter(captured.append)
+    parse_node(state)
 
     payload = next(e for e in captured if e.get("event") == "parsed_series")
     row = payload["sleep"][0]
+    assert row["asleep_hr"] == 7.0  # 23:00 → 06:00 = 7h
     assert row["in_bed_hr"] == 0.0
     assert row["efficiency"] == 0.0

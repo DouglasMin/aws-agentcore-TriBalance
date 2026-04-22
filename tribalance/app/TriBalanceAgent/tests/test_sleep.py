@@ -139,3 +139,49 @@ def test_sleep_emits_metrics_event(monkeypatch):
     assert metrics_events[0]["node"] == "sleep"
     assert metrics_events[0]["metrics"]["avg_duration_hr"] == 7.6
     assert metrics_events[0]["metrics"]["trend"] == "stable"
+
+
+def test_sleep_retries_when_read_file_fails_after_metrics(monkeypatch):
+    """If ci.read_file raises after metrics are extracted, loop retries rather
+    than leaving an orphaned metrics event without an artifact."""
+    llm = _FakeLLM(responses=[
+        "print('METRICS_JSON: {\"avg_duration_hr\": 7.6, \"avg_efficiency\": 0.95, \"trend\": \"stable\"}')",
+        "print('METRICS_JSON: {\"avg_duration_hr\": 7.6, \"avg_efficiency\": 0.95, \"trend\": \"stable\"}')",
+    ])
+
+    class _FlakyCI:
+        def __init__(self):
+            self.read_calls = 0
+
+        def write_files(self, files): pass
+        def execute_isolated(self, code):
+            return {
+                "ok": True,
+                "stdout": 'METRICS_JSON: {"avg_duration_hr": 7.6, "avg_efficiency": 0.95, "trend": "stable"}\n',
+                "stderr": "", "files": ["sleep_trend.png"], "error": None,
+            }
+        def read_file(self, path):
+            self.read_calls += 1
+            if self.read_calls == 1:
+                raise IOError("transient network failure")
+            return b"PNG"
+
+    ci = _FlakyCI()
+    s3 = MagicMock()
+    monkeypatch.setenv("ARTIFACTS_S3_BUCKET", "bucket-art")
+    monkeypatch.setattr("nodes._codegen.get_llm", lambda _p: llm)
+
+    captured = []
+    events.set_emitter(captured.append)
+
+    node = make_sleep_node(ci=ci, s3=s3)
+    result = node({"sleep_csv": "x", "run_id": "abc"})
+
+    # Succeeded on attempt 2
+    assert ci.read_calls == 2
+    metrics_events = [e for e in captured if e.get("event") == "metrics"]
+    artifact_events = [e for e in captured if e.get("event") == "artifact"]
+    # Two metrics emits (one per attempt), one artifact (only successful attempt)
+    assert len(metrics_events) == 2
+    assert len(artifact_events) == 1
+    assert result["sleep_metrics"]["trend"] == "stable"
