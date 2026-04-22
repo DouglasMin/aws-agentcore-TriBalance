@@ -62,3 +62,4 @@ samples/
 
 # Claude/tooling local state
 .claude/local_*
+.claude/settings.local.json
