@@ -34,14 +34,40 @@ class TriBalanceProxyStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        handler_dir = str(Path(__file__).parent.parent / "handler")
+        # Zip the project root so the `handler/` directory is preserved as a
+        # package inside the Lambda deployment (not flattened to root files).
+        # This lets main.py keep `from handler.cors import cors_origin` etc —
+        # the same import path that pytest uses locally.
+        project_root = str(Path(__file__).parent.parent)
 
         proxy_fn = lambda_.Function(
             self,
             "ProxyFunction",
             runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="main.lambda_handler",
-            code=lambda_.Code.from_asset(handler_dir),
+            handler="handler.main.lambda_handler",
+            code=lambda_.Code.from_asset(
+                project_root,
+                exclude=[
+                    ".venv",
+                    ".venv/**",
+                    "**/__pycache__",
+                    "**/*.pyc",
+                    "tests",
+                    "tests/**",
+                    "infra",
+                    "infra/**",
+                    "cdk.out",
+                    "cdk.out/**",
+                    "app.py",
+                    "cdk.json",
+                    "pyproject.toml",
+                    "uv.lock",
+                    ".python-version",
+                    "README.md",
+                    ".ruff_cache/**",
+                    ".pytest_cache/**",
+                ],
+            ),
             timeout=Duration.minutes(5),
             memory_size=512,
             environment={
