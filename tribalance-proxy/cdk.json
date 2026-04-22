@@ -1,7 +1,6 @@
 {
-  "app": "python3 app.py",
+  "app": "uv run python app.py",
   "context": {
-    "@aws-cdk/core:enableStackNameDuplicates": "true",
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true
   }
