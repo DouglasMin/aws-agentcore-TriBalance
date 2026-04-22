@@ -15,9 +15,10 @@ type Which = 'sleep' | 'activity';
 
 interface Props {
   which: Which;
+  zone?: string;
 }
 
-export function ChartPanel({ which }: Props) {
+export function ChartPanel({ which, zone }: Props) {
   const sleepSeries = useRunStore((s) => s.sleepSeries);
   const activitySeries = useRunStore((s) => s.activitySeries);
   const sleepMetrics = useRunStore((s) => s.sleepMetrics);
@@ -45,7 +46,7 @@ export function ChartPanel({ which }: Props) {
     : '— no data yet —';
 
   return (
-    <Panel id={id} title={title} className={`chart-panel ${data.length > 0 ? 'on' : ''}`.trim()}>
+    <Panel id={id} title={title} zone={zone} className={`chart-panel ${data.length > 0 ? 'on' : ''}`.trim()}>
       <div className="chart-meta">
         <span>{rangeLabel}</span>
         <b className={metaRight.stable ? 'stable' : ''}>{metaRight.text}</b>

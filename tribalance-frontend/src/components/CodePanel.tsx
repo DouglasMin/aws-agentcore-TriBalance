@@ -1,7 +1,9 @@
 import { useRunStore } from '../store/runStore';
 import { Panel } from './Panel';
 
-export function CodePanel() {
+interface Props { zone?: string }
+
+export function CodePanel({ zone }: Props = {}) {
   const currentNode = useRunStore((s) => s.currentCodeNode);
   const sleepCode = useRunStore((s) => s.sleepCode);
   const activityCode = useRunStore((s) => s.activityCode);
@@ -22,7 +24,7 @@ export function CodePanel() {
   const exitText = ok == null ? '—' : ok ? '0' : '!=0';
 
   return (
-    <Panel id="C-01" title={title} className="code-panel">
+    <Panel id="C-01" title={title} zone={zone} className="code-panel">
       <div className="code-area">
         {highlight(displayCode)}
         {code && ok == null && <span className="caret" />}

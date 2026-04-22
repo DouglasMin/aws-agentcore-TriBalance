@@ -5,11 +5,13 @@ import { Panel } from './Panel';
 // can come from the backend later.
 const CODES = ['SL-01', 'AC-02', 'EN-03', 'RH-04', 'OB-05', 'DB-06'];
 
-export function InsightsPanel() {
+interface Props { zone?: string }
+
+export function InsightsPanel({ zone }: Props = {}) {
   const insights = useRunStore((s) => s.insights);
 
   return (
-    <Panel id="E-01" title="INSIGHTS / SYNTHESIZED" className="insights-panel">
+    <Panel id="E-01" title="INSIGHTS / SYNTHESIZED" zone={zone} className="insights-panel">
       <div className="list">
         {insights.length === 0 ? (
           <div

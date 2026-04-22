@@ -3,13 +3,15 @@ import type { ReactNode } from 'react';
 interface Props {
   id: string;           // coord id like "A-01"
   title: string;        // header title
-  className?: string;   // extra classes (vital, code-panel, etc.)
+  zone?: string;        // "z-vital-1", "z-code", ...  (grid placement)
+  className?: string;   // extra classes (vital, code-panel, primary, ...)
   children: ReactNode;
 }
 
-export function Panel({ id, title, className = '', children }: Props) {
+export function Panel({ id, title, zone, className = '', children }: Props) {
+  const classes = ['panel', zone, className].filter(Boolean).join(' ');
   return (
-    <div className={`panel ${className}`.trim()}>
+    <div className={classes}>
       <div className="hdr">
         <span className="id">{id}</span>
         <span>{title}</span>

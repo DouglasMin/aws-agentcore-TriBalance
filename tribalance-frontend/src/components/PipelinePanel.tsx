@@ -13,11 +13,13 @@ const STEPS: { key: NodeName; label: string }[] = [
   { key: 'plan',        label: '06 · PLAN' },
 ];
 
-export function PipelinePanel() {
+interface Props { zone?: string }
+
+export function PipelinePanel({ zone }: Props = {}) {
   const nodes = useRunStore((s) => s.nodes);
 
   return (
-    <Panel id="B-01" title="PIPELINE / 6 NODES" className="status">
+    <Panel id="B-01" title="PIPELINE / 6 NODES" zone={zone} className="status">
       <div className="pipe">
         {STEPS.map(({ key, label }) => {
           const s = nodes[key];

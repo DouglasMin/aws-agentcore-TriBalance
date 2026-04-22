@@ -1,11 +1,13 @@
 import { useRunStore } from '../store/runStore';
 import { Panel } from './Panel';
 
-export function PlanPanel() {
+interface Props { zone?: string }
+
+export function PlanPanel({ zone }: Props = {}) {
   const plan = useRunStore((s) => s.plan);
 
   return (
-    <Panel id="F-01" title="PRESCRIPTION / WEEKLY" className="plan-panel">
+    <Panel id="F-01" title="PRESCRIPTION / WEEKLY" zone={zone} className="plan-panel">
       <div className="title">
         Weekly <em>prescription</em>
       </div>

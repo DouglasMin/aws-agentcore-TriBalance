@@ -6,6 +6,7 @@ type Kind = 'hr' | 'pct' | 'int';
 interface Props {
   id: string;                  // A-01, A-02, ...
   title: string;
+  zone?: string;
   value: number | null;
   label: string;
   kind: Kind;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function VitalPanel({
-  id, title, value, label, kind, primary, delta, deltaBad,
+  id, title, zone, value, label, kind, primary, delta, deltaBad,
 }: Props) {
   const [shown, setShown] = useState(0);
   const startRef = useRef<number | null>(null);
@@ -43,7 +44,7 @@ export function VitalPanel({
   const unit = value == null ? null : unitFor(kind);
 
   return (
-    <Panel id={id} title={title} className={`vital ${primary ? 'primary' : ''}`.trim()}>
+    <Panel id={id} title={title} zone={zone} className={`vital ${primary ? 'primary' : ''}`.trim()}>
       <div className="v">
         {text}
         {unit && <span className="u">{unit}</span>}
