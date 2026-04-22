@@ -5,49 +5,57 @@ Routes:
   POST /upload-url      → mint presigned PUT URL for input bucket (P-03)
   GET  /artifact?key=.. → mint presigned GET URL for artifact (P-03, may be dropped)
 
-This file is the response-streaming entrypoint registered in CDK. Actual route
-handlers live in invoke.py / presign.py.
+The ``lambda_handler`` function is the entrypoint. When the Function URL is
+configured with ``InvokeMode=RESPONSE_STREAM``, the Lambda Python runtime
+streams bytes from a generator return value directly to the HTTP client.
+Non-streaming routes return a plain dict (buffered HTTP response).
 """
 
 from __future__ import annotations
 
 import json
 
+from handler.invoke import stream_invoke
+from handler.presign import mint_artifact_url, mint_upload_url
 
-def handler(event, context):
-    """Non-streaming fallback (used when Function URL is invoked without streaming).
 
-    Lambda Function URL with RESPONSE_STREAM invoke mode calls `lambda_handler`
-    (response-streaming) when available; this sync handler is the plain-invoke
-    fallback used for routing that doesn't need streaming (upload-url, artifact).
+def lambda_handler(event, context=None):
+    """Streaming-capable entrypoint for the Lambda Function URL.
+
+    Returns:
+      - For ``POST /invoke``: a generator of bytes (SSE frames).
+      - For other routes: a dict (buffered JSON response).
     """
     path = _path(event)
-    method = event.get("requestContext", {}).get("http", {}).get("method", "GET")
+    method = _method(event)
 
     if method == "OPTIONS":
         return _cors_preflight()
 
-    # Scaffolded routes — actual logic lands in P-02 / P-03.
-    if path == "/invoke":
-        return _stub("invoke streaming not wired yet (P-02)")
-    if path == "/upload-url":
-        return _stub("upload-url not wired yet (P-03)")
-    if path == "/artifact":
-        return _stub("artifact not wired yet (P-03)")
+    if path == "/invoke" and method == "POST":
+        return stream_invoke(event)
 
-    return {"statusCode": 404, "body": json.dumps({"error": f"no route: {path}"})}
+    if path == "/upload-url" and method == "POST":
+        return mint_upload_url(event)
+
+    if path == "/artifact" and method == "GET":
+        return mint_artifact_url(event)
+
+    return _not_found(path)
+
+
+# Expose as ``handler`` too so either CDK setting works:
+#   handler="main.lambda_handler"  (preferred)
+#   handler="main.handler"          (legacy P-01 value)
+handler = lambda_handler
 
 
 def _path(event: dict) -> str:
     return event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path", "/")
 
 
-def _stub(msg: str) -> dict:
-    return {
-        "statusCode": 501,
-        "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-        "body": json.dumps({"status": "scaffolded", "message": msg}),
-    }
+def _method(event: dict) -> str:
+    return event.get("requestContext", {}).get("http", {}).get("method", "GET")
 
 
 def _cors_preflight() -> dict:
@@ -59,4 +67,12 @@ def _cors_preflight() -> dict:
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "600",
         },
+    }
+
+
+def _not_found(path: str) -> dict:
+    return {
+        "statusCode": 404,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps({"error": f"no route: {path}"}),
     }
