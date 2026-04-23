@@ -99,7 +99,7 @@ def test_upload_url(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["url"] == "https://signed.example/foo"
-    assert body["key"].startswith("samples/")
+    assert body["key"].startswith("uploads/")
     assert body["key"].endswith("/export.xml")
 
 

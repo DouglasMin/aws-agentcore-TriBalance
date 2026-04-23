@@ -24,9 +24,13 @@ from pathlib import Path
 from aws_cdk import (
     CfnOutput,
     Duration,
+    RemovalPolicy,
     Stack,
+    aws_cloudwatch as cloudwatch,
     aws_iam as iam,
     aws_lambda as lambda_,
+    aws_logs as logs,
+    aws_secretsmanager as secretsmanager,
 )
 from constructs import Construct
 
@@ -72,6 +76,23 @@ class TriBalanceProxyStack(Stack):
 
         project_root = str(Path(__file__).parent.parent)
 
+        # Auth token — shared secret between proxy Lambda and frontend.
+        # CDK auto-generates on first deploy and stores in Secrets Manager.
+        # Lambda reads via boto3 at cold start (once, cached for the life of
+        # the execution environment). Frontend operator must fetch the value
+        # manually (`aws secretsmanager get-secret-value --secret-id ...`)
+        # and paste into .env.local as VITE_PROXY_TOKEN.
+        app_token_secret = secretsmanager.Secret(
+            self,
+            "AppToken",
+            description="TriBalance proxy API auth token (Bearer <value>)",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                password_length=48,
+                exclude_characters="\"/\\'@`:",
+                exclude_punctuation=False,
+            ),
+        )
+
         # LWA layer — enables streaming from a FastAPI/uvicorn app
         lwa_layer = lambda_.LayerVersion.from_layer_version_arn(
             self, "LWALayer", LWA_LAYER_ARN
@@ -86,10 +107,20 @@ class TriBalanceProxyStack(Stack):
             description="FastAPI + uvicorn for TriBalance proxy",
         )
 
+        # Own the Lambda's CloudWatch log group so we control retention.
+        # (Lambda auto-creates if unspecified, with retention=never-expire.)
+        proxy_log_group = logs.LogGroup(
+            self,
+            "ProxyLogGroup",
+            retention=logs.RetentionDays.ONE_MONTH,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
         proxy_fn = lambda_.Function(
             self,
             "ProxyFunction",
             runtime=lambda_.Runtime.PYTHON_3_12,
+            log_group=proxy_log_group,
             # LWA intercepts the handler; run.sh starts uvicorn
             handler="run.sh",
             code=lambda_.Code.from_asset(
@@ -115,14 +146,23 @@ class TriBalanceProxyStack(Stack):
                 ],
             ),
             layers=[lwa_layer, deps_layer],
-            timeout=Duration.minutes(5),
-            memory_size=512,
+            # 10-min timeout: real Apple Health exports (100-400MB) can take
+            # 1-2 min to upload-signed + 2-5 min for AgentCore parse + CI.
+            timeout=Duration.minutes(10),
+            # 1GB memory: FastAPI/uvicorn + LWA baseline ~200MB; headroom
+            # for the SSE buffer + boto3 stream reads. CPU scales with
+            # memory, so 1GB also halves cold-start time vs 512MB.
+            memory_size=1024,
             environment={
                 "AGENTCORE_AGENT_ARN": AGENTCORE_AGENT_ARN,
                 "BEDROCK_REGION": "ap-northeast-2",
                 "INPUT_BUCKET": INPUT_BUCKET,
                 "ARTIFACTS_BUCKET": ARTIFACTS_BUCKET,
                 "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173",
+                # Auth — Lambda fetches the actual token value from Secrets
+                # Manager at startup. If the env var is unset, auth is
+                # disabled (dev / local convenience).
+                "APP_TOKEN_SECRET_ARN": app_token_secret.secret_arn,
                 # LWA configuration
                 "AWS_LWA_PORT": "8080",
                 "AWS_LWA_READINESS_CHECK_PATH": "/health",
@@ -133,6 +173,9 @@ class TriBalanceProxyStack(Stack):
                 "PYTHONPATH": "/opt/python:/var/task:/var/runtime:/var/lang/lib/python3.12/site-packages",
             },
         )
+
+        # IAM: read the auth token secret
+        app_token_secret.grant_read(proxy_fn)
 
         # IAM: AgentCore invoke
         proxy_fn.add_to_role_policy(
@@ -175,5 +218,38 @@ class TriBalanceProxyStack(Stack):
             ),
         )
 
+        # CloudWatch alarms — fire when the proxy errors out or gets slow
+        # enough to suggest timeouts. No SNS wired up yet; alarms show up
+        # in the console. When we're ready to page, attach an SNS topic.
+        cloudwatch.Alarm(
+            self,
+            "ProxyErrorsAlarm",
+            metric=proxy_fn.metric_errors(period=Duration.minutes(5)),
+            threshold=1,
+            evaluation_periods=1,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+            alarm_description="Proxy Lambda errored ≥1× in the last 5 min",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+        cloudwatch.Alarm(
+            self,
+            "ProxyDurationP95Alarm",
+            metric=proxy_fn.metric_duration(
+                period=Duration.minutes(5),
+                statistic="p95",
+            ),
+            # 120s p95 = yellow flag; real timeout is 10 min. Adjust after
+            # a week of baseline observation.
+            threshold=120_000,
+            evaluation_periods=2,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+            alarm_description="Proxy Lambda p95 duration > 120s (two consecutive 5-min windows)",
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+        )
+
         CfnOutput(self, "ProxyFunctionUrl", value=fn_url.url)
         CfnOutput(self, "ProxyFunctionArn", value=proxy_fn.function_arn)
+        # Operator uses this to fetch the token value:
+        #   aws secretsmanager get-secret-value --secret-id <ARN> \
+        #     --query SecretString --output text
+        CfnOutput(self, "AppTokenSecretArn", value=app_token_secret.secret_arn)

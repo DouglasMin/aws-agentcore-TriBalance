@@ -115,7 +115,10 @@ def _do_mint_upload(body: dict) -> dict:
         }
 
     run_id = uuid.uuid4().hex[:12]
-    key = f"samples/{run_id}/{filename}"
+    # User uploads go under ``uploads/`` so the bucket lifecycle can expire
+    # them after 7 days without touching pinned demo fixtures under
+    # ``samples/`` (e.g., ``samples/export_sample.xml``).
+    key = f"uploads/{run_id}/{filename}"
 
     try:
         url = _s3_client().generate_presigned_url(

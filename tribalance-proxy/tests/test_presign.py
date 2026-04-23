@@ -40,7 +40,7 @@ def test_upload_url_success():
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
     assert body["url"] == "https://signed.example/foo"
-    assert body["key"].startswith("samples/") and body["key"].endswith("/export.xml")
+    assert body["key"].startswith("uploads/") and body["key"].endswith("/export.xml")
     assert body["expires_in"] == 300
 
     call = client.generate_presigned_url.call_args
@@ -59,7 +59,7 @@ def test_upload_url_default_filename():
         resp = mint_upload_url(_event({}))
 
     body = json.loads(resp["body"])
-    assert body["key"].startswith("samples/") and body["key"].endswith(".xml")
+    assert body["key"].startswith("uploads/") and body["key"].endswith(".xml")
 
 
 def test_upload_url_rejects_bad_filename():

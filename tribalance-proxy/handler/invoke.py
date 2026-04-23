@@ -40,7 +40,11 @@ def stream_invoke_sse(body: dict) -> Generator[bytes, None, None]:
     """
     # Required field validation
     if not body.get("s3_key"):
-        yield _sse({"event": "error", "message": "payload.s3_key is required"})
+        yield _sse({
+            "event": "error",
+            "kind": "invalid_input",
+            "message": "payload.s3_key is required",
+        })
         return
 
     # Invoke the AgentCore Runtime
@@ -51,13 +55,21 @@ def stream_invoke_sse(body: dict) -> Generator[bytes, None, None]:
             payload=json.dumps(body).encode("utf-8"),
         )
     except Exception as e:
-        yield _sse({"event": "error", "message": f"invoke failed: {e}"})
+        yield _sse({
+            "event": "error",
+            "kind": "agentcore_invoke_failed",
+            "message": f"invoke failed: {e}",
+        })
         return
 
     # resp["response"] is a StreamingBody of \n-delimited JSON event chunks
     stream = resp.get("response")
     if stream is None:
-        yield _sse({"event": "error", "message": "no response stream from AgentCore"})
+        yield _sse({
+            "event": "error",
+            "kind": "agentcore_no_stream",
+            "message": "no response stream from AgentCore",
+        })
         return
 
     # NOTE: boto3 `StreamingBody.iter_chunks(N)` blocks until N bytes are
@@ -93,14 +105,33 @@ def stream_invoke_sse(body: dict) -> Generator[bytes, None, None]:
                     if not line:
                         continue
                     yield _sse(_parse_line(line))
-    except Exception as e:
-        yield _sse({"event": "error", "message": f"stream read failed: {e}"})
-        return
 
-    # Flush trailing partial line (no newline terminator)
-    tail = buffer.strip()
-    if tail:
-        yield _sse(_parse_line(tail))
+        # Flush trailing partial line (no newline terminator)
+        tail = buffer.strip()
+        if tail:
+            yield _sse(_parse_line(tail))
+    except GeneratorExit:
+        # Client disconnected (fetch.abort() on the browser side). FastAPI
+        # sends GeneratorExit into this generator on the next yield. Close
+        # the underlying HTTP connection to AgentCore so the service sees
+        # our disconnect and can short-circuit its own work. Re-raise so
+        # the framework knows we acknowledged the close.
+        raise
+    except Exception as e:
+        yield _sse({
+            "event": "error",
+            "kind": "stream_drop",
+            "message": f"stream read failed: {e}",
+        })
+        return
+    finally:
+        # Always close the boto3 StreamingBody whether we finished, errored,
+        # or got aborted — frees the urllib3 socket and lets the connection
+        # pool reuse it (otherwise we leak one open HTTP conn per invocation).
+        try:
+            stream.close()
+        except Exception:
+            pass
 
 
 def stream_invoke(event: dict) -> Generator[bytes, None, None]:
@@ -112,7 +143,11 @@ def stream_invoke(event: dict) -> Generator[bytes, None, None]:
         raw = event.get("body") or "{}"
         body = json.loads(raw)
     except json.JSONDecodeError:
-        yield _sse({"event": "error", "message": "invalid JSON body"})
+        yield _sse({
+            "event": "error",
+            "kind": "invalid_input",
+            "message": "invalid JSON body",
+        })
         return
 
     yield from stream_invoke_sse(body)
