@@ -1,4 +1,5 @@
-import { useRunStore } from '../store/runStore';
+import { PIPELINE_ORDER, useRunStore } from '../store/runStore';
+import type { NodeName } from '../store/events';
 import { Panel } from './Panel';
 
 interface Props { zone?: string }
@@ -7,38 +8,129 @@ export function CodePanel({ zone }: Props = {}) {
   const currentNode = useRunStore((s) => s.currentCodeNode);
   const sleepCode = useRunStore((s) => s.sleepCode);
   const activityCode = useRunStore((s) => s.activityCode);
+  const status = useRunStore((s) => s.status);
+  const nodes = useRunStore((s) => s.nodes);
 
   const code = currentNode === 'activity' ? activityCode
     : currentNode === 'sleep' ? sleepCode
     : null;
 
-  const title = code
-    ? `NODE · ${currentNode} · ATTEMPT ${code.attempt} · code_interpreter.execute_isolated()`
-    : 'NODE · waiting · code_interpreter.execute_isolated()';
+  const activeNode = PIPELINE_ORDER.find((n) => nodes[n] === 'active') ?? null;
 
-  const displayCode = code ? code.code : '// waiting for a run…';
-  const stdout = code?.stdout ?? '';
-  const stderr = code?.stderr ?? '';
-  const ok = code?.ok;
+  // Three modes:
+  //  code       → real generated code + stdout  (sleep/activity CI nodes)
+  //  live-wait  → live run but no code yet (fetch/parse/synth/plan or pre-codegen)
+  //  idle       → nothing running
+  const mode: 'code' | 'live-wait' | 'idle' =
+    code ? 'code' : status === 'live' ? 'live-wait' : 'idle';
 
-  const exitText = ok == null ? '—' : ok ? '0' : '!=0';
+  const title =
+    mode === 'code' && code
+      ? `NODE · ${currentNode} · ATTEMPT ${code.attempt} · code_interpreter.execute_isolated()`
+      : mode === 'live-wait' && activeNode
+      ? `NODE · ${activeNode} · ${PHASE_HINT[activeNode]}`
+      : 'NODE · waiting · code_interpreter.execute_isolated()';
 
   return (
     <Panel id="C-01" title={title} zone={zone} className="code-panel">
-      <div className="code-area">
-        {highlight(displayCode)}
-        {code && ok == null && <span className="caret" />}
-      </div>
-      <div className="stdbox">
-        <div className="t">
-          <span>
-            STDOUT · exitCode=<em>{exitText}</em>
-          </span>
-          <span>{stderr ? 'stderr present' : ''}</span>
+      {mode === 'code' && code ? (
+        <>
+          <div className="code-area">
+            {highlight(code.code)}
+            {code.ok == null && <span className="caret" />}
+          </div>
+          <div className="stdbox">
+            <div className="t">
+              <span>
+                STDOUT · exitCode=<em>{code.ok == null ? '—' : code.ok ? '0' : '!=0'}</em>
+              </span>
+              <span>{code.stderr ? 'stderr present' : ''}</span>
+            </div>
+            <pre>{code.stdout || '— waiting —'}</pre>
+          </div>
+        </>
+      ) : mode === 'live-wait' ? (
+        <FakeLog node={activeNode} />
+      ) : (
+        <div className="code-area">
+          {highlight('// waiting for a run…')}
         </div>
-        <pre>{stdout || '— waiting —'}</pre>
-      </div>
+      )}
     </Panel>
+  );
+}
+
+/* ------------------------ live-wait placeholder ------------------------ */
+
+const PHASE_HINT: Record<NodeName, string> = {
+  fetch: 'downloading healthkit export…',
+  parse: 'parsing export.xml…',
+  sleep: 'generating code…',
+  activity: 'generating code…',
+  synthesize: 'composing insights…',
+  plan: 'drafting prescription…',
+};
+
+const NODE_LOG: Record<NodeName, string[]> = {
+  fetch: [
+    '> opening bedrock-agentcore runtime session',
+    '> s3://tribalance-input · get_object',
+    '> streaming bytes · gzip decompress',
+    '> handoff → parse_xml',
+  ],
+  parse: [
+    '> reading apple-health export.xml',
+    '> scanning HKSleepAnalysis records',
+    '> scanning HKQuantityTypeIdentifier (steps, energy, exercise)',
+    '> aggregating per-day series',
+  ],
+  sleep: [
+    '> picking sleep analysis task',
+    '> prompting claude-sonnet-4-6 (attempt 1)',
+    '> opening code_interpreter.execute_isolated',
+    '> forwarding series payload…',
+  ],
+  activity: [
+    '> picking activity analysis task',
+    '> prompting claude-sonnet-4-6 (attempt 1)',
+    '> opening code_interpreter.execute_isolated',
+    '> forwarding series payload…',
+  ],
+  synthesize: [
+    '> composing insights (temperature=0.2)',
+    '> scoring severity · low / watch / high',
+    '> shortlisting 6 actionable items',
+  ],
+  plan: [
+    '> drafting weekly prescription',
+    '> aligning with metrics & insights',
+    '> finalizing summary',
+  ],
+};
+
+function FakeLog({ node }: { node: NodeName | null }) {
+  if (!node) {
+    return <div className="code-area">{highlight('// initializing…')}<span className="caret" /></div>;
+  }
+  const lines = NODE_LOG[node];
+  return (
+    <div className="code-area fake-log" key={node}>
+      {lines.map((ln, i) => (
+        <div
+          key={i}
+          className="fake-log-line"
+          style={{ animationDelay: `${i * 0.55}s` }}
+        >
+          {ln}
+        </div>
+      ))}
+      <div
+        className="fake-log-line heartbeat"
+        style={{ animationDelay: `${lines.length * 0.55}s` }}
+      >
+        &gt; heartbeat <span className="caret" />
+      </div>
+    </div>
   );
 }
 
@@ -51,7 +143,6 @@ const KEYWORDS = new Set([
 ]);
 
 function highlight(src: string): React.ReactNode {
-  // Process line-by-line to preserve structure. Comment handling first.
   const lines = src.split('\n');
   return lines.map((line, i) => (
     <span key={i}>
@@ -94,7 +185,6 @@ function tokenize(part: string): React.ReactNode {
   let key = 0;
   while (i < part.length) {
     const c = part[i];
-    // string literal
     if (c === '"' || c === "'") {
       const start = i;
       i++;
@@ -103,7 +193,6 @@ function tokenize(part: string): React.ReactNode {
       out.push(<span key={key++} className="s">{part.slice(start, i)}</span>);
       continue;
     }
-    // identifier/keyword/call
     if (/[A-Za-z_]/.test(c)) {
       const start = i;
       while (i < part.length && /[A-Za-z0-9_]/.test(part[i])) i++;
@@ -117,7 +206,6 @@ function tokenize(part: string): React.ReactNode {
       }
       continue;
     }
-    // everything else
     out.push(c);
     i++;
   }

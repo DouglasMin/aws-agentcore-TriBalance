@@ -64,7 +64,7 @@ const INITIAL_NODES: Record<NodeName, NodeStatus> = {
   plan: 'idle',
 };
 
-const PIPELINE_ORDER: NodeName[] = [
+export const PIPELINE_ORDER: NodeName[] = [
   'fetch',
   'parse',
   'sleep',

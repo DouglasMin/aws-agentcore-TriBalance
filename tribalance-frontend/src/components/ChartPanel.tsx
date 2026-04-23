@@ -23,6 +23,7 @@ export function ChartPanel({ which, zone }: Props) {
   const activitySeries = useRunStore((s) => s.activitySeries);
   const sleepMetrics = useRunStore((s) => s.sleepMetrics);
   const activityMetrics = useRunStore((s) => s.activityMetrics);
+  const status = useRunStore((s) => s.status);
 
   const isSleep = which === 'sleep';
   const id = isSleep ? 'D-01' : 'D-02';
@@ -39,11 +40,17 @@ export function ChartPanel({ which, zone }: Props) {
 
   const metaRight = trend
     ? { text: `TREND · ${trend.toUpperCase()}`, stable: trend === 'stable' }
+    : status === 'live'
+    ? { text: 'AWAITING SIGNAL', stable: false }
     : { text: 'AWAITING', stable: true };
 
   const rangeLabel = data.length > 0
     ? `${data.length} DATAPOINTS · ${data[0].date} → ${data[data.length - 1].date}`
+    : status === 'live'
+    ? 'streaming · no datapoints yet'
     : '— no data yet —';
+
+  const liveEmpty = data.length === 0 && status === 'live';
 
   return (
     <Panel id={id} title={title} zone={zone} className={`chart-panel ${data.length > 0 ? 'on' : ''}`.trim()}>
@@ -94,6 +101,17 @@ export function ChartPanel({ which, zone }: Props) {
               />
             </LineChart>
           </ResponsiveContainer>
+        ) : liveEmpty ? (
+          <div className="chart-skeleton">
+            <div className="chart-skel-grid">
+              <div className="chart-skel-line" />
+              <div className="chart-skel-line" />
+              <div className="chart-skel-line" />
+              <div className="chart-skel-line" />
+            </div>
+            <div className="chart-scanline" />
+            <div className="chart-awaiting">— AWAITING SIGNAL —</div>
+          </div>
         ) : (
           <div
             style={{

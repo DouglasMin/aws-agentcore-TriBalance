@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInvoke } from '../hooks/useSSE';
 import { useRunStore } from '../store/runStore';
 
@@ -21,6 +21,8 @@ export function Upload() {
   const { invoke, abort } = useInvoke();
   const reset = useRunStore((s) => s.reset);
   const status = useRunStore((s) => s.status);
+  const runId = useRunStore((s) => s.runId);
+  const startedAt = useRunStore((s) => s.startedAt);
   const fileRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
@@ -107,24 +109,28 @@ export function Upload() {
 
   return (
     <div className="upload">
-      <label
-        className={`upload-zone ${labelClass}`.trim()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDrag(true);
-        }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={onDrop}
-      >
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".xml,application/xml"
-          disabled={busy}
-          onChange={onInputChange}
-        />
-        {labelText}
-      </label>
+      {status === 'live' ? (
+        <LiveRunZone runId={runId} startedAt={startedAt} />
+      ) : (
+        <label
+          className={`upload-zone ${labelClass}`.trim()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrag(true);
+          }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={onDrop}
+        >
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xml,application/xml"
+            disabled={busy}
+            onChange={onInputChange}
+          />
+          {labelText}
+        </label>
+      )}
       {status === 'live' ? (
         <button
           className="btn ghost"
@@ -179,4 +185,27 @@ function zoneClass(u: UploadState, drag: boolean): string {
 function errMsg(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+function LiveRunZone({
+  runId,
+  startedAt,
+}: {
+  runId: string | null;
+  startedAt: number | null;
+}) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((x) => x + 1), 500);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = startedAt ? ((Date.now() - startedAt) / 1000).toFixed(1) : '0.0';
+  return (
+    <div className="upload-zone live">
+      <span className="live-dot" />
+      <span>
+        RUN <b>{runId ?? 'pending'}</b> · T+{elapsed}s
+      </span>
+    </div>
+  );
 }

@@ -1,16 +1,16 @@
-import { useRunStore } from '../store/runStore';
+import { PIPELINE_ORDER, useRunStore } from '../store/runStore';
 import type { NodeStatus } from '../store/runStore';
 import type { NodeName } from '../store/events';
 import { Panel } from './Panel';
 import { Upload } from './Upload';
 
-const STEPS: { key: NodeName; label: string }[] = [
-  { key: 'fetch',       label: '01 · FETCH_S3' },
-  { key: 'parse',       label: '02 · PARSE_XML' },
-  { key: 'sleep',       label: '03 · SLEEP · CI' },
-  { key: 'activity',    label: '04 · ACTIVITY · CI' },
-  { key: 'synthesize',  label: '05 · SYNTHESIZE' },
-  { key: 'plan',        label: '06 · PLAN' },
+const STEPS: { key: NodeName; short: string; label: string }[] = [
+  { key: 'fetch',       short: 'FETCH_S3',      label: '01 · FETCH_S3' },
+  { key: 'parse',       short: 'PARSE_XML',     label: '02 · PARSE_XML' },
+  { key: 'sleep',       short: 'SLEEP · CI',    label: '03 · SLEEP · CI' },
+  { key: 'activity',    short: 'ACTIVITY · CI', label: '04 · ACTIVITY · CI' },
+  { key: 'synthesize',  short: 'SYNTHESIZE',    label: '05 · SYNTHESIZE' },
+  { key: 'plan',        short: 'PLAN',          label: '06 · PLAN' },
 ];
 
 interface Props { zone?: string }
@@ -22,8 +22,25 @@ export function PipelinePanel({ zone }: Props = {}) {
 
   const connecting = status === 'live' && !runId;
 
+  const activeKey = PIPELINE_ORDER.find((n) => nodes[n] === 'active') ?? null;
+  const doneCount = PIPELINE_ORDER.filter((n) => nodes[n] === 'done').length;
+  const activeIdx = activeKey ? PIPELINE_ORDER.indexOf(activeKey) + 1 : doneCount;
+  const progress = String(activeIdx || doneCount).padStart(2, '0');
+  const activeShort = activeKey
+    ? STEPS.find((s) => s.key === activeKey)?.short ?? ''
+    : '';
+
+  const title =
+    status === 'live' && activeKey
+      ? `PIPELINE · ${progress}/06 · ${activeShort}`
+      : status === 'complete'
+      ? 'PIPELINE · 06/06 · COMPLETE'
+      : status === 'error'
+      ? 'PIPELINE · HALTED'
+      : 'PIPELINE / 6 NODES';
+
   return (
-    <Panel id="B-01" title="PIPELINE / 6 NODES" zone={zone} className="status">
+    <Panel id="B-01" title={title} zone={zone} className="status">
       {connecting && (
         <div className="connecting">
           <span className="connecting-dot" />
