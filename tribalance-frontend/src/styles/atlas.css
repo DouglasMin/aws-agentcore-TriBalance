@@ -325,6 +325,57 @@
   letter-spacing: 0.16em;
 }
 
+/* ---------- error banner ---------- */
+.err-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 20px;
+  background: rgba(239,68,68,0.08);
+  border-bottom: 1px solid var(--danger);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--danger);
+}
+.err-left { display: flex; gap: 14px; align-items: baseline; min-width: 0; }
+.err-tag {
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--danger);
+}
+.err-hint {
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  font-size: 11.5px;
+  text-transform: none;
+}
+.err-right { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+.err-msg {
+  color: var(--ink-dim);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  max-width: 420px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.err-dismiss {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  cursor: pointer;
+}
+.err-dismiss:hover { background: var(--danger); color: var(--void); }
+
 /* live run summary (replaces upload-zone while status==='live') */
 .upload-zone.live {
   display: flex;

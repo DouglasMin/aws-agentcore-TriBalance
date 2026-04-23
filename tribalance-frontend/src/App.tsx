@@ -6,31 +6,17 @@ import { CodePanel } from './components/CodePanel';
 import { ChartPanel } from './components/ChartPanel';
 import { InsightsPanel } from './components/InsightsPanel';
 import { PlanPanel } from './components/PlanPanel';
+import { ErrorBanner } from './components/ErrorBanner';
 import './styles/atlas.css';
 
 export default function App() {
   const sleepMetrics = useRunStore((s) => s.sleepMetrics);
   const activityMetrics = useRunStore((s) => s.activityMetrics);
-  const errorMessage = useRunStore((s) => s.errorMessage);
 
   return (
     <>
       <Topbar />
-      {errorMessage && (
-        <div
-          style={{
-            padding: '10px 20px',
-            background: 'rgba(239,68,68,0.1)',
-            borderBottom: '1px solid var(--danger)',
-            color: 'var(--danger)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.1em',
-          }}
-        >
-          ERROR · {errorMessage}
-        </div>
-      )}
+      <ErrorBanner />
       <div className="atlas">
         {/* Row 1 — KPIs + Pipeline */}
         <VitalPanel

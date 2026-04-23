@@ -21,11 +21,14 @@ export interface CodeState {
 
 export type RunStatus = 'idle' | 'live' | 'complete' | 'error';
 
+type ErrorKind = NonNullable<Extract<AgentEvent, { event: 'error' }>['kind']>;
+
 interface RunState {
   // meta
   runId: string | null;
   status: RunStatus;
   errorMessage: string | null;
+  errorKind: ErrorKind | null;
   period: string | null;
   startedAt: number | null;
 
@@ -77,6 +80,7 @@ export const useRunStore = create<RunState>((set) => ({
   runId: null,
   status: 'idle',
   errorMessage: null,
+  errorKind: null,
   period: null,
   startedAt: null,
   nodes: { ...INITIAL_NODES },
@@ -95,6 +99,7 @@ export const useRunStore = create<RunState>((set) => ({
       runId: null,
       status: 'idle',
       errorMessage: null,
+      errorKind: null,
       period: null,
       startedAt: null,
       nodes: { ...INITIAL_NODES },
@@ -128,9 +133,17 @@ export const useRunStore = create<RunState>((set) => ({
             nodes: { ...INITIAL_NODES, fetch: 'active' },
           };
 
+        case 'node_start': {
+          // Precise activation — fires the moment the node body begins.
+          // Keeps any already-done states intact.
+          if (s.nodes[e.node] === 'done') return {};
+          return { nodes: { ...s.nodes, [e.node]: 'active' as NodeStatus } };
+        }
+
         case 'node_end': {
           const nodes = { ...s.nodes, [e.node]: 'done' as NodeStatus };
-          // mark next node active
+          // Also advance the next node to active in case node_start didn't
+          // arrive (older agent versions, buffered flush, etc.).
           const idx = PIPELINE_ORDER.indexOf(e.node);
           if (idx >= 0 && idx + 1 < PIPELINE_ORDER.length) {
             const next = PIPELINE_ORDER[idx + 1];
@@ -233,6 +246,7 @@ export const useRunStore = create<RunState>((set) => ({
           return {
             status: 'error' as RunStatus,
             errorMessage: e.message,
+            errorKind: (e.kind ?? null) as ErrorKind | null,
           };
 
         default:

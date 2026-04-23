@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useInvoke } from '../hooks/useSSE';
 import { useRunStore } from '../store/runStore';
+import { PROXY_URL, authHeaders } from '../lib/api';
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || '';
 const SAMPLE_S3_KEY = 'samples/export_sample.xml';
 
 interface PresignResponse {
@@ -39,7 +39,7 @@ export function Upload() {
     try {
       const resp = await fetch(`${PROXY_URL}/upload-url`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           filename: f.name.replace(/[^A-Za-z0-9._-]/g, '_'),
           content_type: f.type || 'application/xml',

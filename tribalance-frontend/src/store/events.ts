@@ -59,6 +59,7 @@ export interface FinalReport {
 
 export type AgentEvent =
   | { event: 'run_started'; run_id: string; period: string }
+  | { event: 'node_start'; node: NodeName }
   | { event: 'node_end'; node: NodeName }
   | { event: 'parsed_series'; sleep: SleepPoint[]; activity: ActivityPoint[] }
   | {
@@ -87,4 +88,21 @@ export type AgentEvent =
       content_type: string;
     }
   | { event: 'complete'; report: FinalReport }
-  | { event: 'error'; message: string; node?: string };
+  | {
+      event: 'error';
+      message: string;
+      node?: string;
+      /** Backend classifies errors so the UI can show a tailored message. */
+      kind?:
+        | 'invalid_input'
+        | 'empty_data'
+        | 'agentcore_invoke_failed'
+        | 'agentcore_no_stream'
+        | 'stream_drop'
+        | 'access_denied'
+        | 's3_not_found'
+        | 'timeout'
+        | 'code_interpreter_failure'
+        | 'graph_failure'
+        | 'network';
+    };

@@ -1,8 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { AgentEvent } from '../store/events';
 import { useRunStore } from '../store/runStore';
-
-const PROXY_URL = import.meta.env.VITE_PROXY_URL || '';
+import { PROXY_URL, authHeaders } from '../lib/api';
 
 interface InvokePayload {
   s3_key: string;
@@ -44,7 +43,7 @@ export function useInvoke() {
       try {
         response = await fetch(`${PROXY_URL}/invoke`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
           signal: ctrl.signal,
         });
