@@ -60,18 +60,39 @@ def stream_invoke_sse(body: dict) -> Generator[bytes, None, None]:
         yield _sse({"event": "error", "message": "no response stream from AgentCore"})
         return
 
+    # NOTE: boto3 `StreamingBody.iter_chunks(N)` blocks until N bytes are
+    # buffered OR EOF — this batches many events together. We want to forward
+    # each event as soon as AgentCore emits it, so we reach into the urllib3
+    # raw stream and use `read1()`, which returns whatever's currently in the
+    # socket buffer without waiting for a fixed byte count.
+    raw = getattr(stream, "_raw_stream", None)
     buffer = b""
     try:
-        for chunk in stream.iter_chunks(chunk_size=4096):
-            if not chunk:
-                continue
-            buffer += chunk
-            while b"\n" in buffer:
-                line, buffer = buffer.split(b"\n", 1)
-                line = line.strip()
-                if not line:
+        if raw is not None and hasattr(raw, "read1"):
+            while True:
+                chunk = raw.read1(65536)
+                if not chunk:
+                    break
+                buffer += chunk
+                while b"\n" in buffer:
+                    line, buffer = buffer.split(b"\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    yield _sse(_parse_line(line))
+        else:
+            # Fallback: iter_chunks with a small size so events aren't
+            # batched much. Not ideal but works if _raw_stream is gone.
+            for chunk in stream.iter_chunks(chunk_size=64):
+                if not chunk:
                     continue
-                yield _sse(_parse_line(line))
+                buffer += chunk
+                while b"\n" in buffer:
+                    line, buffer = buffer.split(b"\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    yield _sse(_parse_line(line))
     except Exception as e:
         yield _sse({"event": "error", "message": f"stream read failed: {e}"})
         return

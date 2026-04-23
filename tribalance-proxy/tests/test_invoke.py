@@ -37,6 +37,15 @@ def _event(body) -> dict:
     }
 
 
+def _decode(frame: bytes) -> dict:
+    """Extract the JSON object from an SSE frame.
+
+    Each frame is `data: {json}\\n\\n<padding>`. We want just the JSON.
+    """
+    first_line = frame.split(b"\n", 1)[0]
+    return json.loads(first_line.removeprefix(b"data: ").decode("utf-8"))
+
+
 def test_stream_invoke_emits_run_started_and_complete(monkeypatch):
     """Real agent emits JSON lines like `{"event":"run_started",...}`.
     Our streamer should wrap each in `data: ...\n\n`."""
@@ -65,7 +74,7 @@ def test_stream_invoke_emits_run_started_and_complete(monkeypatch):
         assert frame.endswith(b"\n\n")
 
     # First frame has run_started
-    first = json.loads(frames[0][6:-2].decode("utf-8"))
+    first = _decode(frames[0])
     assert first["event"] == "run_started"
     assert first["run_id"] == "abc"
 
@@ -80,7 +89,7 @@ def test_stream_invoke_missing_s3_key_emits_error(monkeypatch):
     from handler.invoke import stream_invoke
     frames = list(stream_invoke(_event({})))  # no s3_key
     assert len(frames) == 1
-    payload = json.loads(frames[0][6:-2])
+    payload = _decode(frames[0])
     assert payload["event"] == "error"
     assert "s3_key" in payload["message"]
 
@@ -102,7 +111,7 @@ def test_stream_invoke_handles_multi_event_chunk(monkeypatch):
         frames = list(stream_invoke(_event({"s3_key": "x"})))
 
     assert len(frames) == 3
-    events = [json.loads(f[6:-2])["event"] for f in frames]
+    events = [_decode(f)["event"] for f in frames]
     assert events == ["a", "b", "c"]
 
 
@@ -117,7 +126,7 @@ def test_stream_invoke_handles_invoke_error(monkeypatch):
         frames = list(stream_invoke(_event({"s3_key": "x"})))
 
     assert len(frames) == 1
-    payload = json.loads(frames[0][6:-2])
+    payload = _decode(frames[0])
     assert payload["event"] == "error"
     assert "access denied" in payload["message"]
 
@@ -127,6 +136,6 @@ def test_stream_invoke_handles_invalid_json_body(monkeypatch):
     bad_event = _event("not-json{{")
     frames = list(stream_invoke(bad_event))
     assert len(frames) == 1
-    payload = json.loads(frames[0][6:-2])
+    payload = _decode(frames[0])
     assert payload["event"] == "error"
     assert "invalid JSON" in payload["message"].lower() or "JSON" in payload["message"]
