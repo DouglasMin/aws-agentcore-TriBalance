@@ -19,7 +19,7 @@ from __future__ import annotations
 import csv
 import io
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from lxml import etree
 
@@ -35,6 +35,28 @@ _QUANTITY_MAP = {
     "HKQuantityTypeIdentifierActiveEnergyBurned": "active_kcal",
     "HKQuantityTypeIdentifierAppleExerciseTime":  "exercise_min",
 }
+
+# Activity double-count guard: iPhone and Apple Watch log overlapping step
+# counts. To avoid summing both, we aggregate Watch and "other" (iPhone /
+# 3rd-party) records into SEPARATE buckets, then at series-construction
+# time pick per-day: Watch if any Watch data exists that day, otherwise
+# fall back to other. This keeps the pipeline usable for Watch-less users
+# while preventing the 2× double-count when both are present.
+# Sleep records are NOT split because many users intentionally rely on
+# 3rd-party sleep trackers (AutoSleep, SleepCycle, etc.).
+_WATCH_HINT = "watch"
+
+# After parsing, keep only the most recent N days of aggregated data. Prevents
+# multi-year exports from overwhelming downstream Code Interpreter prompts.
+_KEEP_RECENT_DAYS = 14
+
+
+class EmptyExportError(ValueError):
+    """Raised when the parsed XML contains no usable sleep/activity records.
+
+    Caught in main.py's entrypoint and re-emitted as an ``error`` SSE event
+    so the UI can show a clear, user-actionable message.
+    """
 
 
 def _parse_dt(s: str) -> datetime:
@@ -55,7 +77,10 @@ def parse_node(state: TriBalanceState) -> dict:
     sleep_by_date: dict[str, dict[str, int]] = defaultdict(
         lambda: {"in_bed_min": 0, "asleep_min": 0}
     )
-    activity_by_date: dict[str, dict[str, int]] = defaultdict(
+    activity_watch: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"steps": 0, "active_kcal": 0, "exercise_min": 0}
+    )
+    activity_other: dict[str, dict[str, int]] = defaultdict(
         lambda: {"steps": 0, "active_kcal": 0, "exercise_min": 0}
     )
     sleep_records = 0
@@ -90,15 +115,49 @@ def parse_node(state: TriBalanceState) -> dict:
                 value = float(el.get("value", "0"))
             except ValueError:
                 value = 0.0
+            source = (el.get("sourceName") or "").lower()
+            bucket = activity_watch if _WATCH_HINT in source else activity_other
             # round (not truncate) to avoid systematic undercount on kcal,
             # and floor at zero to swallow malformed negatives.
-            activity_by_date[date_key][col] += max(0, round(value))
+            bucket[date_key][col] += max(0, round(value))
         # free element memory; purge previous siblings
         el.clear()
         while el.getprevious() is not None:
             del el.getparent()[0]
 
-    dates = sorted(set(list(sleep_by_date.keys()) + list(activity_by_date.keys())))
+    # Merge activity per-metric: take max(watch, other) for each column.
+    # Why max() — the Watch logs kcal/exercise that iPhone doesn't (so for
+    # those metrics the Watch's value wins, iPhone's is 0). Steps are logged
+    # by both; taking the max avoids double-counting while preserving the
+    # higher-fidelity source (usually Watch, but iPhone wins on days the
+    # Watch wasn't worn). Mirrors Apple Health app's own display logic.
+    activity_by_date: dict[str, dict[str, int]] = {}
+    for d in set(list(activity_watch.keys()) + list(activity_other.keys())):
+        w = activity_watch.get(d) or {"steps": 0, "active_kcal": 0, "exercise_min": 0}
+        o = activity_other.get(d) or {"steps": 0, "active_kcal": 0, "exercise_min": 0}
+        activity_by_date[d] = {
+            "steps":        max(w["steps"], o["steps"]),
+            "active_kcal":  max(w["active_kcal"], o["active_kcal"]),
+            "exercise_min": max(w["exercise_min"], o["exercise_min"]),
+        }
+
+    all_dates = sorted(set(list(sleep_by_date.keys()) + list(activity_by_date.keys())))
+
+    # Empty export guard — either the file had no supported records, or
+    # sourceName filtering removed everything. Raise a typed error so the
+    # graph can surface a specific message to the UI.
+    if not all_dates:
+        raise EmptyExportError(
+            "no sleep/activity records found — is this an Apple Health export.xml "
+            "with Apple Watch data? (file had 0 matching records after filtering)"
+        )
+
+    # Trim to last _KEEP_RECENT_DAYS from the MAX date seen in the file.
+    # Anchoring on the data (not on "today") keeps sample exports usable
+    # and naturally scopes multi-year exports to the most recent window.
+    max_date = datetime.strptime(all_dates[-1], "%Y-%m-%d").date()
+    window_start = (max_date - timedelta(days=_KEEP_RECENT_DAYS - 1)).isoformat()
+    dates = [d for d in all_dates if d >= window_start]
 
     sleep_out = io.StringIO()
     sleep_w = csv.DictWriter(sleep_out, fieldnames=["date", "in_bed_min", "asleep_min"])

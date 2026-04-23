@@ -47,6 +47,7 @@ from graph import build_graph
 from infra.code_interpreter import CodeInterpreterWrapper
 from infra.logging_config import correlation_id_var, get_logger, setup_logging
 from infra.s3 import S3Client
+from nodes.parse import EmptyExportError
 
 setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
 log = get_logger("tribalance.main")
@@ -64,7 +65,11 @@ async def invoke(payload: dict, context: Any = None) -> AsyncGenerator[dict, Non
     s3_key = payload.get("s3_key")
     week_start = payload.get("week_start")
     if not s3_key:
-        yield {"event": "error", "message": "payload.s3_key is required"}
+        yield {
+            "event": "error",
+            "kind": "invalid_input",
+            "message": "payload.s3_key is required",
+        }
         return
 
     yield {
@@ -125,9 +130,30 @@ async def invoke(payload: dict, context: Any = None) -> AsyncGenerator[dict, Non
 
         try:
             final_state = await task
+        except EmptyExportError as exc:
+            log.warning("empty export: %s", exc)
+            yield {
+                "event": "error",
+                "kind": "empty_data",
+                "message": str(exc),
+            }
+            return
         except Exception as exc:
             log.exception("graph failed")
-            yield {"event": "error", "message": str(exc)}
+            # Best-effort classification of common failures for UI branching.
+            msg = str(exc)
+            lower = msg.lower()
+            if "access" in lower and "denied" in lower:
+                kind = "access_denied"
+            elif "not found" in lower or "nosuchkey" in lower:
+                kind = "s3_not_found"
+            elif "timeout" in lower or "timed out" in lower:
+                kind = "timeout"
+            elif "code_interpreter" in lower or "execute_isolated" in lower:
+                kind = "code_interpreter_failure"
+            else:
+                kind = "graph_failure"
+            yield {"event": "error", "kind": kind, "message": msg}
             return
 
         yield {
